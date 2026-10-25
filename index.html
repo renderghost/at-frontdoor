@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Front Door Prototype</title>
+  <meta name="description" content="A front-end-only prototype of signing in to an Atmosphere app with Front Door. Nothing is real: accounts, providers, emails and redirects are simulated.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
+  <script src="script.js" defer></script>
+</head>
+<body data-notes="open">
+  <header class="proto-bar">
+    <div class="proto-brand">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor"/><path d="M12 2.75a9.25 9.25 0 1 1-8.01 4.62" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+      <span>Front Door</span>
+      <span class="proto-tag">Prototype</span>
+    </div>
+    <nav class="scenario-nav" id="scenario-nav" aria-label="Scenarios"></nav>
+    <div class="proto-actions">
+      <button class="bar-btn" type="button" data-action="restart"><i data-lucide="rotate-ccw" class="icon"></i><span>Restart</span></button>
+      <button class="bar-btn" id="notes-toggle" type="button" data-action="toggleNotes" aria-controls="notes" aria-expanded="true"><i data-lucide="panel-right" class="icon"></i><span>Notes</span></button>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="browser-wrap">
+      <section class="browser" aria-label="Simulated browser window">
+        <div class="chrome">
+          <div class="chrome-tabs">
+            <div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="tab">
+              <span class="tab-icon" id="tab-icon" aria-hidden="true"></span>
+              <span class="tab-title" id="tab-title"></span>
+              <i data-lucide="x" class="icon tab-x" aria-hidden="true"></i>
+            </div>
+          </div>
+          <div class="chrome-bar">
+            <span class="nav-btn" aria-hidden="true"><i data-lucide="arrow-left" class="icon"></i></span>
+            <span class="nav-btn" aria-hidden="true"><i data-lucide="arrow-right" class="icon"></i></span>
+            <span class="nav-btn" aria-hidden="true"><i data-lucide="rotate-cw" class="icon"></i></span>
+            <div class="omnibox" id="omnibox" role="group" aria-label="Address bar">
+              <i data-lucide="lock" class="icon" aria-hidden="true"></i>
+              <span class="url"><span class="url-host" id="url-host"></span><span id="url-path"></span></span>
+            </div>
+            <span class="nav-btn" aria-hidden="true"><i data-lucide="ellipsis-vertical" class="icon"></i></span>
+          </div>
+        </div>
+        <div class="viewport" id="viewport">
+          <div class="page" id="page"></div>
+          <div class="layer" id="layer" hidden></div>
+          <div class="fedcm" id="fedcm" hidden></div>
+          <div class="toast" id="toast" role="status" hidden></div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="notes" id="notes" aria-label="Prototype notes">
+      <div class="notes-head">
+        <p class="ns-label">Notes</p>
+        <button class="icon-btn icon-btn-sm" type="button" data-action="toggleNotes" aria-label="Close notes"><i data-lucide="x" class="icon"></i></button>
+      </div>
+      <section class="notes-sec" id="notes-scenario"></section>
+      <section class="notes-sec" id="notes-step"></section>
+      <section class="notes-sec" id="notes-journey"></section>
+      <section class="notes-sec" id="notes-events"></section>
+    </aside>
+  </div>
+
+  <div class="notification" id="notification" hidden></div>
+  <dialog class="mail" id="mail" aria-labelledby="mail-subject"></dialog>
+  <div class="sr-only" id="live" aria-live="polite"></div>
+  <noscript><p class="noscript">This prototype needs JavaScript to run.</p></noscript>
+</body>
+</html>
