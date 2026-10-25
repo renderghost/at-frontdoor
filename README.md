@@ -16,6 +16,10 @@ It loads Inter from Google Fonts and Lucide icons from unpkg. Offline, it falls 
 
 Link straight to a scenario with a hash: `index.html#new`, `#returning`, `#forgot`, `#multi` or `#hidden`.
 
+### On GitHub Pages
+
+No workflow needed. In the repository, go to **Settings → Pages**, set **Source** to **Deploy from a branch**, pick `main` and `/ (root)`, and save. The site appears at `https://renderghost.github.io/at-sign-in-with-atmosphere/` a minute or two later. The `.nojekyll` file tells Pages to serve the files as they are.
+
 ## Scenarios
 
 Pick one from the bar at the top. Each resets the prototype with a different person and browser state.
