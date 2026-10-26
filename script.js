@@ -26,7 +26,7 @@ const APP = { name: 'Potluck', domain: 'potluck.kitchen' };
 
 // Descriptions are placeholders. Who gets listed, and how, is open (D9).
 const PROVIDERS = {
-  potluck: { name: 'Potluck', host: 'account.potluck.kitchen', suffix: 'potluck.kitchen', glyph: 'cooking-pot', blurb: 'Potluck looks after your account for you. The quickest way to start.' },
+  potluck: { name: 'Potluck', host: 'account.potluck.kitchen', suffix: 'potluck.kitchen', glyph: 'cooking-pot', blurb: 'Potluck hosts your Atmosphere account for you. The quickest way to start.' },
   blacksky: { name: 'Blacksky', host: 'blacksky.app', suffix: 'blacksky.app', glyph: 'moon-star', blurb: 'A community-run home for Black people on the open social web.' },
   bluesky: { name: 'Bluesky', host: 'bsky.social', suffix: 'bsky.social', glyph: 'cloud', blurb: 'The biggest provider, run by the team behind the Bluesky app.' },
   eurosky: { name: 'Eurosky', host: 'eurosky.social', suffix: 'eurosky.social', glyph: 'star', blurb: 'Hosted in Europe and open to everyone.' },
@@ -79,7 +79,7 @@ const SCENARIOS = {
     browserAccounts: [],
     situation: 'Jo has never used Bluesky or any other Atmosphere app. A friend sent Jo a recipe on Potluck.',
     tryThis: [
-      'Press <strong>Create an account</strong> (or <strong>Continue with Atmosphere</strong>, then “New here?”).',
+      'Press <strong>Create an Atmosphere account</strong> (or <strong>Continue with Atmosphere</strong>, then “New here?”).',
       'Keep Potluck as the provider, or pick another one.',
       'Use the browser’s saved email. Any password of 8 or more characters works.',
     ],
@@ -90,11 +90,11 @@ const SCENARIOS = {
     label: 'Knows their details',
     personaHandle: 'sam.bsky.social',
     browserAccounts: [],
-    situation: 'Sam uses Bluesky every day and knows their handle and password, but this is a new laptop, so the browser doesn’t know Sam yet.',
+    situation: 'Sam uses Bluesky every day, so Sam already has an Atmosphere account, hosted by Bluesky. Sam knows the handle and password, but this is a new laptop, so the browser doesn’t know Sam yet.',
     tryThis: [
       'Press <strong>Continue with Atmosphere</strong>.',
       'Type <code>sam</code>, <code>@sam.bsky.social</code>, <code>sam@bsky.social</code> or <code>sam.bsky.app</code> and see what Front Door makes of it.',
-      'Afterwards, sign out and sign in again. The browser now offers Sam’s account.',
+      'Afterwards, sign out and sign in again. The browser now offers Sam’s Atmosphere account.',
     ],
     data: [['Handle', 'sam.bsky.social'], ['Password', 'anything']],
   },
@@ -103,7 +103,7 @@ const SCENARIOS = {
     label: 'Forgot their details',
     personaHandle: 'rae.blacksky.app',
     browserAccounts: [],
-    situation: 'Rae made a Blacksky account last year. Rae can’t remember the handle or the password, but does know the email address.',
+    situation: 'Rae created an Atmosphere account last year, with Blacksky as the provider. Rae can’t remember the handle or the password, but does know the email address.',
     tryThis: [
       'Press <strong>Continue with Atmosphere</strong>, then <strong>Forgot your handle?</strong>',
       'Use Rae’s email and pick Blacksky, or “Not sure”.',
@@ -116,10 +116,10 @@ const SCENARIOS = {
     label: 'Several accounts',
     personaHandle: 'alex.bsky.social',
     browserAccounts: ['alex.bsky.social', 'alexcooks.eurosky.social', 'alexmoreno.studio'],
-    situation: 'Alex has three accounts: a personal one on Bluesky, a cooking one on Eurosky and a work one on a custom domain. This browser has seen all three.',
+    situation: 'Alex has three Atmosphere accounts: a personal one hosted by Bluesky, a cooking one hosted by Eurosky, and a work one on a custom domain. This browser has seen all three.',
     tryThis: [
-      'Press <strong>Continue with Atmosphere</strong>. The browser lists Alex’s accounts.',
-      'Pick the cooking account, Alex Cooks. Eurosky asks for consent in a new tab, which closes once Potluck is connected.',
+      'Press <strong>Continue with Atmosphere</strong>. The browser lists Alex’s Atmosphere accounts.',
+      'Pick the cooking account, Alex Cooks. Its provider, Eurosky, asks for consent in a new tab, which closes once Potluck is connected.',
       'Try the account menu afterwards to switch accounts.',
     ],
     data: [['Accounts', '3, remembered by the browser'], ['Password', 'not needed']],
@@ -129,11 +129,11 @@ const SCENARIOS = {
     label: 'Has one, doesn’t know it',
     personaHandle: 'priya.bsky.social',
     browserAccounts: ['priya.bsky.social'],
-    situation: 'Priya uses Bluesky on this laptop but doesn’t think of it as an account for other apps. Priya assumes Potluck needs a new account.',
+    situation: 'Priya uses Bluesky on this laptop but doesn’t know that means Priya already has an Atmosphere account that works in other apps. Priya assumes Potluck needs a new account.',
     tryThis: [
-      'Press <strong>Create an account</strong>, as Priya would.',
-      'Front Door finds the Bluesky account before anything is created.',
-      'Use it, or open “Create a new account anyway” to see the other route.',
+      'Press <strong>Create an Atmosphere account</strong>, as Priya would.',
+      'Front Door finds Priya’s existing Atmosphere account, hosted by Bluesky, before anything is created.',
+      'Use it, or open “Create another Atmosphere account anyway” to see the other route.',
     ],
     data: [['Account', 'priya.bsky.social, known to the browser']],
   },
@@ -145,7 +145,7 @@ const PRINCIPLES = {
   noDuplicates: 'Never create an account they already have',
   forgive: 'Forgive the input',
   noDependency: 'No new dependency in the critical path',
-  issuer: 'Provider as issuer, Atmosphere as network',
+  issuer: 'One Atmosphere account, a choice of providers',
   ownWords: 'Permissions in the app’s own words',
   standard: 'Standard where it builds trust',
   measure: 'If we can’t measure it, we can’t sell it',
@@ -175,7 +175,7 @@ const JOURNEY = [
 const STEPS = {
   'app.signin': {
     title: 'The app’s sign-in page', owner: 'app', journey: ['button'], event: 'app.signin_shown',
-    what: 'One Atmosphere button. The line under it names Bluesky, because that’s the name people know. “Create an account” goes into the same flow, so newcomers get the existing-account check too.',
+    what: 'One Atmosphere button. The line under it tells Bluesky users they already have an Atmosphere account, because Bluesky is the name people know. “Create an Atmosphere account” goes into the same flow, so newcomers get the existing-account check too.',
     principles: ['recognition', 'standard'],
     quote: ['Nobody, except for us, knows the word atmosphere', 'Tessa, Germ'],
     open: 'D10: “Continue with” (one door for signing in and signing up) or “Sign in with”? D2: when the Bluesky bridge copy can come off.',
@@ -202,15 +202,15 @@ const STEPS = {
     open: 'Does this extra tap pay for itself in trust, or should Front Door redirect straight away? Test in R1.',
   },
   'fd.create': {
-    title: 'Create an account', owner: 'frontdoor', journey: ['check', 'choose'], event: 'frontdoor.create_shown',
-    what: 'The existing-account prompt sits inline at the top, not in a warning pop-up. Then pick where the account lives: Potluck is pinned as the app’s default and everyone else is listed A to Z.',
+    title: 'Create an Atmosphere account', owner: 'frontdoor', journey: ['check', 'choose'], event: 'frontdoor.create_shown',
+    what: 'The existing-account prompt sits inline at the top, not in a warning pop-up. Then pick a provider to host the new Atmosphere account: Potluck is pinned as the app’s default and everyone else is listed A to Z. It’s the same Atmosphere account whichever provider hosts it.',
     principles: ['noDuplicates', 'issuer'],
     quote: ['there’s a 75% drop off from people seeing the login page to coming back.', 'Guido, Sifa'],
     open: 'D7: how strong the existing-account prompt should be. D9: who gets listed, and in what order.',
   },
   'fd.found': {
     title: 'Existing account detected', owner: 'frontdoor', journey: ['check'], event: 'frontdoor.existing_account_offered',
-    what: 'Priya came to make a new account, but the browser knows Priya is signed in to Bluesky. Front Door offers that account first. Making a second one is still possible, one tap away.',
+    what: 'Priya came to make a new account, but the browser knows Priya’s Atmosphere account, hosted by Bluesky. Front Door offers that account first. Making a second one is still possible, one tap away.',
     principles: ['noDuplicates', 'recognition'],
     quote: ['So if you click sign up, then it says, are you sure you don’t have an account yet?', 'Flo, Atmo.rsvp'],
     open: 'Guido expects any existing-account step to cost sign-ups. Only the P4 A/B test in a partner app will settle it.',
@@ -237,7 +237,7 @@ const STEPS = {
   },
   'pv.signin': {
     title: 'Provider sign-in', owner: 'provider', journey: ['auth'], event: 'provider.signin_shown',
-    what: 'The provider’s own page, on its own address. Front Door passed the handle through, so only the password is left. The footer says whose page this is and that Potluck never sees the password.',
+    what: 'The provider’s own page, on its own address. The heading names the Atmosphere account and the copy names the provider as its host. Front Door passed the handle through, so only the password is left, and the footer says Potluck never sees it.',
     principles: ['handshake', 'issuer'],
     quote: ['especially because now it redirects to something that looks like it’s owned by Bluesky.', 'Pouria, Semble'],
     open: 'Providers own this page. This layout is what we’d propose to the reference PDS and Bluesky’s entryway (D8).',
@@ -257,7 +257,7 @@ const STEPS = {
   },
   'pv.signup': {
     title: 'Create the account at the provider', owner: 'provider', journey: ['auth'], event: 'provider.signup_shown',
-    what: 'Account creation belongs to the provider, whether that’s Potluck’s own hosting or anyone else. Two fields. The confirmation email doesn’t block getting in.',
+    what: 'The chosen provider creates the Atmosphere account, whether that’s Potluck’s own hosting or anyone else. The page says it’s an Atmosphere account that this provider hosts. Two fields. The confirmation email doesn’t block getting in.',
     principles: ['issuer', 'noDuplicates'],
     quote: ['even if you lose two or 3% of users, if you scale up, that’s a lot.', 'Holke, Hypercerts'],
     open: 'Passkeys instead of passwords. Where age checks and terms belong.',
@@ -271,7 +271,7 @@ const STEPS = {
   },
   'pv.consent': {
     title: 'Consent, redesigned', owner: 'provider', journey: ['consent'], event: 'provider.consent_shown',
-    what: 'Framed as connecting two accounts, with both shown. Each permission is in Potluck’s words with a reason, and optional ones can be switched off. The technical detail is there for anyone who opens it.',
+    what: 'Framed as connecting Potluck to the person’s Atmosphere account, with both shown and the provider named as its host. Each permission is in Potluck’s words with a reason, and optional ones can be switched off. The technical detail is there for anyone who opens it.',
     principles: ['handshake', 'ownWords', 'standard'],
     quote: ['That sounds like, Oh, they’re asking for root access to my account.', 'Eli, Streamplace'],
     open: 'Per-permission reasons need a new client-metadata field, which is a protocol change. D8: who owns this screen’s design.',
@@ -291,7 +291,7 @@ const STEPS = {
   },
   'app.home': {
     title: 'Signed in', owner: 'app', journey: ['back'], event: 'app.home_shown',
-    what: 'Back in Potluck. Now, not at the door, is when the network gets explained. Account settings link out to the provider, which owns them.',
+    what: 'Back in Potluck. Now, not at the door, is when the idea of one Atmosphere account gets explained. Account settings link out to the provider that hosts it.',
     principles: ['recognition', 'issuer', 'measure'],
     quote: ['It is only after you get through the account creation when you’re walking through some of the onboarding steps that we have that we surface that there is such a thing as the atmosphere.', 'Rishi, Blacksky'],
     open: 'D11: where managing, moving and deleting the account live, and how in-app deletion meets App Store and EU rules.',
@@ -618,7 +618,7 @@ function sheet(body, { back } = {}) {
       <button class="icon-btn" type="button" data-action="closeSheet" aria-label="Close">${icon('x')}</button>
     </div>
     <div class="sheet-body">${body}</div>
-    <div class="sheet-foot">${mark('mark-xs')}<span>One account for Bluesky and a growing world of apps.</span></div>`;
+    <div class="sheet-foot">${mark('mark-xs')}<span>One Atmosphere account for Bluesky, ${APP.name} and every other Atmosphere app.</span></div>`;
 }
 
 function showSheet(markup) {
@@ -730,8 +730,8 @@ function appSignin({ quiet = false } = {}) {
   const flash = S.flash;
   S.flash = null;
   const flashMarkup = {
-    cancelled: `<div class="notice notice-info">${icon('info')}<p>You didn’t connect an account, so you’re not signed in. Try again whenever you like.</p></div>`,
-    signedOut: `<div class="notice notice-ok">${icon('circle-check')}<p>You’ve signed out. Next time, your browser can offer this account.</p></div>`,
+    cancelled: `<div class="notice notice-info">${icon('info')}<p>You didn’t connect your Atmosphere account, so you’re not signed in. Try again whenever you like.</p></div>`,
+    signedOut: `<div class="notice notice-ok">${icon('circle-check')}<p>You’ve signed out. Next time, your browser can offer your Atmosphere account.</p></div>`,
   }[flash] || '';
 
   showPage(`
@@ -751,16 +751,16 @@ function appSignin({ quiet = false } = {}) {
           <h2 id="pl-signin-title">Sign in to Potluck</h2>
           <p class="pl-card-lede">Save recipes, follow friends and share what you cook.</p>
           <button class="atmo-btn" type="button" data-action="atmosphereButton">${mark()}<span>Continue with Atmosphere</span></button>
-          <p class="pl-bridge">Works with your Bluesky account, and with Blacksky, Eurosky and other Atmosphere accounts.</p>
+          <p class="pl-bridge">Use your Atmosphere account. If you use Bluesky, you already have one.</p>
           <details class="explainer">
             <summary>${icon('circle-help')}<span>What’s an Atmosphere account?</span></summary>
             <div class="explainer-body">
-              <p>If you use Bluesky, you already have one. The same account works on Potluck and a growing number of other apps.</p>
-              <p>Like email, lots of different providers can look after it, and you can move between them without starting again.</p>
+              <p>It’s one account that works across Bluesky, Potluck and a growing number of other apps. If you use Bluesky, you already have one.</p>
+              <p>A provider of your choice hosts it, such as Bluesky, Blacksky or Eurosky. Like email, you can move to another provider without starting again, and it’s still the same Atmosphere account.</p>
             </div>
           </details>
           <div class="pl-divider"><span>New to Potluck?</span></div>
-          <button class="pl-btn" type="button" data-action="createAccount">Create an account</button>
+          <button class="pl-btn" type="button" data-action="createAccount">Create an Atmosphere account</button>
           <p class="pl-legal">By continuing you agree to Potluck’s <a href="#" class="link" data-action="noop">Terms</a> and <a href="#" class="link" data-action="noop">Privacy Policy</a>.</p>
         </section>
       </main>
@@ -775,7 +775,7 @@ function accountMenu(p) {
       <summary aria-label="Account menu for @${esc(p.handle)}">${avatar(p, 'sm')}<span class="am-handle">@${esc(p.handle)}</span>${icon('chevron-down')}</summary>
       <div class="am-panel">
         <div class="am-who">${accountRow(p, { meta: false })}</div>
-        <p class="am-issuer">${providerTile(p.provider, 'xs')}<span>${esc(pv.name)} account</span><span aria-hidden="true">·</span>${mark('mark-xs')}<span>Atmosphere</span></p>
+        <p class="am-issuer"><span class="am-line">${mark('mark-xs')}Atmosphere account</span><span class="am-line">${providerTile(p.provider, 'xs')}Hosted by ${esc(providerName(p))}</span></p>
         <button class="am-item" type="button" data-action="switchAccount">${icon('users-round')}Switch account</button>
         <button class="am-item" type="button" data-action="manageAccount">${icon('external-link')}Manage account on ${esc(pv.name)}</button>
         <button class="am-item" type="button" data-action="signOut">${icon('log-out')}Sign out</button>
@@ -784,17 +784,13 @@ function accountMenu(p) {
 }
 
 function welcomeCopy(p, isNew) {
-  const pv = PROVIDERS[p.provider];
   const name = esc(first(p.name));
   const handle = `<strong>@${esc(p.handle)}</strong>`;
-  if (isNew && p.provider === 'potluck') {
-    return `<h1 id="banner-title">Welcome to Potluck, ${name}.</h1><p>Your handle is ${handle}. It’s an Atmosphere account, so you can also use it to sign in to Bluesky and other apps.</p>`;
-  }
+  const host = esc(providerName(p));
   if (isNew) {
-    return `<h1 id="banner-title">Welcome to Potluck, ${name}.</h1><p>Your new ${esc(pv.name)} account, ${handle}, is ready. It works here, on Bluesky and on other Atmosphere apps.</p>`;
+    return `<h1 id="banner-title">Welcome to Potluck, ${name}.</h1><p>Your Atmosphere account, ${handle}, is ready, hosted by ${host}. It’s one account for Potluck, Bluesky and every other Atmosphere app, so you can use it to sign in to all of them.</p>`;
   }
-  const others = p.provider === 'bluesky' ? 'Bluesky' : `${esc(pv.name)}, Bluesky`;
-  return `<h1 id="banner-title">You’re in, ${name}.</h1><p>You signed in with your ${esc(pv.name)} account, ${handle}. It works here because ${others} and Potluck are all part of the Atmosphere: one account for a growing world of apps. Recipes you save are kept in your account, so they’re yours even if you stop using Potluck.</p>`;
+  return `<h1 id="banner-title">You’re in, ${name}.</h1><p>You signed in with your Atmosphere account, ${handle}, hosted by ${host}. It’s the same account you can use on Potluck, Bluesky and every other Atmosphere app. Recipes you save are kept in your account, so they’re yours even if you stop using Potluck.</p>`;
 }
 
 function recipeCard(r) {
@@ -848,7 +844,7 @@ function fedcmChoose() {
         <button class="icon-btn icon-btn-sm" type="button" data-action="fedcmClose" aria-label="Close">${icon('x')}</button>
       </div>
       ${body}
-      <button class="fedcm-other" type="button" data-action="fedcmOther">${icon('user-plus')}Use another account</button>
+      <button class="fedcm-other" type="button" data-action="fedcmOther">${icon('user-plus')}Use another Atmosphere account</button>
       <p class="fedcm-fine">Your browser shows Atmosphere accounts you’ve used on this device. ${APP.name} doesn’t see them unless you pick one.</p>
     </div>`;
   els.fedcm.hidden = false;
@@ -939,7 +935,7 @@ function suggestionsFor(raw) {
 function fixMessage(raw, r) {
   const ending = r.fixes.find((f) => f.type === 'ending');
   let why = 'Handles use dots, not an @ in the middle.';
-  if (ending) why = `${ending.bad} isn’t a handle ending. ${PROVIDERS[HANDLE_DOMAINS[ending.good]].name} handles end in ${ending.good}.`;
+  if (ending) why = `${ending.bad} isn’t a handle ending. Handles hosted by ${PROVIDERS[HANDLE_DOMAINS[ending.good]].name} end in ${ending.good}.`;
   else if (r.fixes.some((f) => f.type === 'link')) why = 'We took the handle from the profile link.';
   return `We read <strong>${esc(raw.trim())}</strong> as <strong>@${esc(r.value)}</strong>. ${why}`;
 }
@@ -949,8 +945,8 @@ function fdFind({ mode = 'signin' } = {}) {
   combo.items = [];
   combo.active = -1;
   showSheet(sheet(`
-    <h2 id="sheet-title" class="sheet-title">${search ? 'Find your account' : `Sign in to ${APP.name}`}</h2>
-    <p>${search ? 'Start typing your name or handle. We’ll show matching accounts.' : 'Use the account you already have on Bluesky or any other Atmosphere app.'}</p>
+    <h2 id="sheet-title" class="sheet-title">${search ? 'Find your Atmosphere account' : `Sign in to ${APP.name}`}</h2>
+    <p>${search ? 'Start typing your name or handle. We’ll show matching Atmosphere accounts.' : 'Use your Atmosphere account. If you use Bluesky or another Atmosphere app, you already have one.'}</p>
     <form class="form" data-form="find" novalidate autocomplete="off">
       <div class="field">
         <label for="handle">${search ? 'Your name or handle' : 'Your handle'}</label>
@@ -965,7 +961,7 @@ function fdFind({ mode = 'signin' } = {}) {
     </form>
     <div class="sheet-links">
       <button class="link-btn" type="button" data-action="goForgot">Forgot your handle?</button>
-      <button class="link-btn" type="button" data-action="goCreate">New here? Create an account</button>
+      <button class="link-btn" type="button" data-action="goCreate">New here? Create an Atmosphere account</button>
     </div>`));
   enter('fd.find');
 }
@@ -1016,7 +1012,7 @@ function submitFind(form) {
   renderCombo(input, []);
 
   if (!raw.trim()) {
-    fieldMsg('handle', 'error', 'Type your handle or your name to find your account.');
+    fieldMsg('handle', 'error', 'Type your handle or your name to find your Atmosphere account.');
     return;
   }
   if (r.kind === 'email') {
@@ -1032,13 +1028,13 @@ function submitFind(form) {
       return;
     }
     track('frontdoor.handle_not_found');
-    fieldMsg('handle', 'error', `We couldn’t find anyone called “${esc(raw.trim())}”. Handles look like <strong>name.bsky.social</strong> or <strong>name.blacksky.app</strong>. New to the Atmosphere? <button type="button" class="link-btn" data-action="goCreate">Create an account</button>`);
+    fieldMsg('handle', 'error', `We couldn’t find anyone called “${esc(raw.trim())}”. Handles look like <strong>name.bsky.social</strong> or <strong>name.blacksky.app</strong>. New to the Atmosphere? <button type="button" class="link-btn" data-action="goCreate">Create an Atmosphere account</button>`);
     return;
   }
   const p = profile(r.value);
   if (!p) {
     track('frontdoor.handle_not_found');
-    fieldMsg('handle', 'error', `We couldn’t find <strong>@${esc(r.value)}</strong>. Check the spelling, or <button type="button" class="link-btn" data-action="goForgot">find your account with your email</button>.`);
+    fieldMsg('handle', 'error', `We couldn’t find <strong>@${esc(r.value)}</strong>. Check the spelling, or <button type="button" class="link-btn" data-action="goForgot">find your Atmosphere account with your email</button>.`);
     return;
   }
   if (r.fixes.length) track('frontdoor.handle_corrected', r.fixes.map((f) => f.type).join(', '));
@@ -1054,9 +1050,9 @@ function fdConfirm(p, fixNote = '') {
     <h2 id="sheet-title" class="sheet-title">Is this you?</h2>
     <div class="found-card">${accountRow(p)}</div>
     <div class="next-hop">
-      <p class="next-hop-title">Next, sign in on ${esc(who)}’s page</p>
+      <p class="next-hop-title">Next, sign in with ${esc(who)}, your account’s provider</p>
       <ul class="hop-list">
-        <li>${icon('arrow-right')}<span>You’ll go to <strong>${esc(host)}</strong>, where ${esc(who)} accounts sign in.</span></li>
+        <li>${icon('arrow-right')}<span>You’ll go to <strong>${esc(host)}</strong>. ${esc(who)} hosts your Atmosphere account, so that’s where you sign in.</span></li>
         <li>${icon('shield-check')}<span>${esc(who)} will show what Potluck wants to do. You decide.</span></li>
         <li>${icon('undo-2')}<span>Then you’ll come straight back to Potluck.</span></li>
       </ul>
@@ -1084,8 +1080,8 @@ function createForm() {
   return `
     <form class="form" data-form="create" novalidate>
       <fieldset class="field">
-        <legend>Where should your account live?</legend>
-        <p class="hint">A provider looks after your account. You can move to another one later and take your posts and followers with you, like keeping your number when you change mobile network.</p>
+        <legend>Who should host your Atmosphere account?</legend>
+        <p class="hint">Your provider keeps your Atmosphere account safe and online. It works in every Atmosphere app whichever provider you pick, and you can move to another provider later and take your posts and followers with you, like keeping your number when you change mobile network.</p>
         <div class="provider-list">
           ${providerOption('potluck', { pinned: true, checked: true })}
           <p class="list-label">Other providers, A to Z</p>
@@ -1103,7 +1099,7 @@ function createForm() {
           </div>
         </div>
       </fieldset>
-      <button class="btn btn-primary btn-block" type="submit" id="create-submit">Create my account with Potluck</button>
+      <button class="btn btn-primary btn-block" type="submit" id="create-submit">Create my Atmosphere account with Potluck</button>
     </form>`;
 }
 
@@ -1112,22 +1108,22 @@ function fdCreate() {
   let body;
   if (known.length) {
     const intro = known.length === 1
-      ? `This browser is signed in to ${esc(providerName(known[0]))} as ${esc(known[0].name)}. That account works on ${APP.name} too, so there’s no need to make another one.`
+      ? `This browser knows ${esc(known[0].name)}’s Atmosphere account, hosted by ${esc(providerName(known[0]))}. It works on ${APP.name} too, so there’s no need to make another one.`
       : `This browser knows these Atmosphere accounts. Any of them works on ${APP.name}, so there’s no need to make another one.`;
     body = `
-      <h2 id="sheet-title" class="sheet-title">Before you create an account</h2>
+      <h2 id="sheet-title" class="sheet-title">Before you create an Atmosphere account</h2>
       <section class="found" aria-labelledby="found-title">
         <p class="found-kicker">${icon('sparkles')}Found on this device</p>
-        <h3 id="found-title" class="found-title">You already have an account</h3>
+        <h3 id="found-title" class="found-title">You already have an Atmosphere account</h3>
         <p>${intro}</p>
         <ul class="found-list">${known.map((p) => `<li><button type="button" class="acct-btn" data-action="useExisting" data-handle="${p.handle}">${accountRow(p, { meta: false })}<span class="acct-cta">Use this</span></button></li>`).join('')}</ul>
       </section>
-      <button type="button" class="disclosure" data-action="toggleNew" aria-expanded="false" aria-controls="new-account">Create a new account anyway${icon('chevron-down')}</button>
+      <button type="button" class="disclosure" data-action="toggleNew" aria-expanded="false" aria-controls="new-account">Create another Atmosphere account anyway${icon('chevron-down')}</button>
       <div id="new-account" hidden>${createForm()}</div>`;
   } else {
     body = `
-      <h2 id="sheet-title" class="sheet-title">Create your account</h2>
-      <div class="notice notice-info">${icon('info')}<p><strong>Used Bluesky or another Atmosphere app before?</strong> Then you already have an account and can <button type="button" class="link-btn" data-action="goFind">sign in with it</button>. Not sure? <button type="button" class="link-btn" data-action="goSearch">Search for yourself</button>.</p></div>
+      <h2 id="sheet-title" class="sheet-title">Create your Atmosphere account</h2>
+      <div class="notice notice-info">${icon('info')}<p><strong>Used Bluesky or another Atmosphere app before?</strong> Then you already have an Atmosphere account and can <button type="button" class="link-btn" data-action="goFind">sign in with it</button>. Not sure? <button type="button" class="link-btn" data-action="goSearch">Search for yourself</button>.</p></div>
       ${createForm()}`;
   }
   showSheet(sheet(body));
@@ -1158,8 +1154,8 @@ function submitCreate(form) {
 function fdForgot(prefill = '') {
   const persona = personaFor(SCENARIOS[S.scenario]);
   showSheet(sheet(`
-    <h2 id="sheet-title" class="sheet-title">Find your account with your email</h2>
-    <p>Your provider can email you your handle and a code to sign in. ${APP.name} never finds out whether you have an account.</p>
+    <h2 id="sheet-title" class="sheet-title">Find your Atmosphere account with your email</h2>
+    <p>The provider that hosts your Atmosphere account can email you your handle and a code to sign in. ${APP.name} never finds out whether you have an account.</p>
     <form class="form" data-form="forgot" novalidate>
       <div class="field">
         <label for="email">Email address</label>
@@ -1168,7 +1164,7 @@ function fdForgot(prefill = '') {
         <div id="email-msg" class="field-msg" aria-live="polite"></div>
       </div>
       <fieldset class="field">
-        <legend>Where did you make your account?</legend>
+        <legend>Which provider hosts your Atmosphere account?</legend>
         <div class="chip-grid">
           ${RECOVERY_PROVIDERS.map((id) => `<label class="chip"><input type="radio" name="provider" value="${id}">${providerTile(id, 'xs')}${PROVIDERS[id].name}</label>`).join('')}
           <label class="chip"><input type="radio" name="provider" value="unsure">${icon('circle-help')}Not sure</label>
@@ -1187,11 +1183,11 @@ function submitForgot(form) {
   fieldMsg('email', 'error', '');
   fieldMsg('where', 'error', '');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    fieldMsg('email', 'error', 'Enter the email address you used when you made your account, like name@example.com.');
+    fieldMsg('email', 'error', 'Enter the email address you used when you created your Atmosphere account, like name@example.com.');
     return;
   }
   if (!choice) {
-    fieldMsg('where', 'error', 'Choose where you made your account, or pick “Not sure”.');
+    fieldMsg('where', 'error', 'Choose the provider that hosts your account, or pick “Not sure”.');
     return;
   }
   track('frontdoor.recovery_requested', choice === 'unsure' ? 'not sure' : PROVIDERS[choice].name);
@@ -1210,8 +1206,8 @@ function fdCheckEmail(email, choice) {
   showSheet(sheet(`
     <span class="sheet-hero">${icon('mail-open')}</span>
     <h2 id="sheet-title" class="sheet-title">Check your email</h2>
-    <p>If ${unsure ? 'one of the providers we asked' : esc(who)} has an account for <strong>${esc(email)}</strong>, it’s emailing your handle and a sign-in code there now.</p>
-    ${unsure ? `<p class="hint">We asked ${asked}. Only the one with your account will email you.</p>` : ''}
+    <p>If ${unsure ? 'one of the providers we asked' : esc(who)} hosts an Atmosphere account for <strong>${esc(email)}</strong>, it’s emailing your handle and a sign-in code there now.</p>
+    ${unsure ? `<p class="hint">We asked ${asked}. Only the provider that hosts your account will email you.</p>` : ''}
     <p>The email comes from ${esc(who)}, not from ${APP.name}. It can take a minute or two, and sometimes lands in spam or junk.</p>
     <div class="sheet-links">
       <button class="link-btn" type="button" data-action="goForgot" data-email="${esc(email)}">Try another provider</button>
@@ -1237,12 +1233,12 @@ function recoveryMail(p, { link }) {
     from: pv.name,
     address: `no-reply@${hostFor(p)}`,
     to: p.email,
-    subject: `Your ${pv.name} account details`,
+    subject: 'Your Atmosphere account details',
     preview: `Your handle is @${p.handle}. Your sign-in code is ${formatCode(S.code)}.`,
     code: S.code,
     body: `
       <p>Hi ${esc(first(p.name))},</p>
-      <p>You asked for your account details while signing in to <strong>${APP.name}</strong>. Here they are.</p>
+      <p>You asked for your Atmosphere account details while signing in to <strong>${APP.name}</strong>. Here they are.</p>
       <dl class="mail-facts">
         <div><dt>Your handle</dt><dd>@${esc(p.handle)}</dd></div>
         <div><dt>Your sign-in code</dt><dd class="code">${formatCode(S.code)}</dd></div>
@@ -1250,7 +1246,7 @@ function recoveryMail(p, { link }) {
       <p>The code works for 15 minutes.</p>
       ${next}
       <p>If you didn’t ask for this, you can ignore this email. Nobody can get into your account without the code.</p>
-      <p>${esc(pv.name)}</p>`,
+      <p>${esc(pv.name)}, the provider that hosts your Atmosphere account</p>`,
   };
 }
 
@@ -1261,15 +1257,15 @@ function welcomeMail(p) {
     from: pv.name,
     address: `no-reply@${hostFor(p)}`,
     to: p.email,
-    subject: `Confirm your email for ${pv.name}`,
+    subject: 'Confirm the email for your Atmosphere account',
     preview: 'One tap to confirm. You can keep using Potluck in the meantime.',
     body: `
       <p>Hi ${esc(first(p.name))},</p>
-      <p>Welcome to ${esc(pv.name)}. Please confirm this is your email address, so you can get back into your account if you ever forget your password.</p>
+      <p>Your Atmosphere account is ready, and ${esc(pv.name)} is hosting it. Please confirm this is your email address, so you can get back into your account if you ever forget your password.</p>
       <p><button class="btn btn-primary" type="button" data-action="mailConfirm" data-handle="${p.handle}">Confirm my email address</button></p>
       <dl class="mail-facts"><div><dt>Your handle</dt><dd>@${esc(p.handle)}</dd></div></dl>
-      <p>Your handle works on Potluck, Bluesky and other Atmosphere apps. Keep this email: it’s an easy place to find your handle later.</p>
-      <p>${esc(pv.name)}</p>`,
+      <p>Your Atmosphere account works on Potluck, Bluesky and every other Atmosphere app. Keep this email: it’s an easy place to find your handle later.</p>
+      <p>${esc(pv.name)}, the provider that hosts your Atmosphere account</p>`,
   };
 }
 
@@ -1357,12 +1353,12 @@ function providerFrame(pid, inner) {
   const pv = PROVIDERS[pid];
   return `
     <div class="pv">
-      <header class="pv-head">${providerTile(pid, 'sm')}<span class="pv-name">${esc(pv.name)}</span><span class="pv-network">${mark('mark-xs')}<span>Atmosphere account</span></span></header>
+      <header class="pv-head">${providerTile(pid, 'sm')}<span class="pv-name">${esc(pv.name)}</span><span class="pv-network">${mark('mark-xs')}<span>Atmosphere provider</span></span></header>
       <main class="pv-main">${inner}</main>
       <footer class="pv-foot">${icon('lock')}<span>${
         pid === 'potluck'
-          ? 'This is Potluck’s account service. It’s separate from the app, and your account works in other Atmosphere apps too.'
-          : `This is ${esc(pv.name)}’s own page. ${APP.name} never sees your password.`
+          ? 'This is Potluck’s account hosting, separate from the app. Your Atmosphere account works in every Atmosphere app, whoever hosts it.'
+          : `This is ${esc(pv.name)}’s own page. ${esc(pv.name)} hosts your Atmosphere account, and ${APP.name} never sees your password.`
       }</span></footer>
     </div>`;
 }
@@ -1377,7 +1373,7 @@ function showProviderPage(p, path, title, inner) {
 }
 
 function handshake(p) {
-  const right = p.handle ? `${avatar(p, 'xs')}<span>@${esc(p.handle)}</span>` : `${providerTile(p.provider, 'xs')}<span>${esc(providerName(p))}</span>`;
+  const right = p.handle ? `${avatar(p, 'xs')}<span>@${esc(p.handle)}</span>` : `${mark('mark-xs')}<span>Atmosphere account</span>`;
   return `<p class="handshake"><span class="hs-side">${appTile('xs')}<span>${APP.name}</span></span>${icon('arrow-left-right')}<span class="hs-side">${right}</span></p>`;
 }
 
@@ -1386,7 +1382,7 @@ function twoAccounts(p) {
     <div class="two-accounts" aria-hidden="true">
       <div class="ta-item">${appTile('lg')}<span class="ta-label">${APP.name}</span><span class="ta-sub">${icon('shield-check')}${APP.domain}</span></div>
       <span class="ta-link">${icon('link-2')}</span>
-      <div class="ta-item">${avatar(p, 'lg')}<span class="ta-label">@${breakable(p.handle)}</span><span class="ta-sub">${providerTile(p.provider, 'xs')}${esc(providerName(p))} account</span></div>
+      <div class="ta-item">${avatar(p, 'lg')}<span class="ta-label">@${breakable(p.handle)}</span><span class="ta-sub">${mark('mark-xs')}Atmosphere account</span><span class="ta-sub">${providerTile(p.provider, 'xs')}Hosted by ${esc(providerName(p))}</span></div>
     </div>`;
 }
 
@@ -1400,8 +1396,8 @@ function toProvider(handle) {
 function pvSignin(p) {
   showProviderPage(p, '/oauth/authorize', 'Sign in', `
     ${handshake({ provider: p.provider })}
-    <h1 class="pv-title">Sign in to ${esc(providerName(p))}</h1>
-    <p class="pv-lede">to continue to ${APP.name}</p>
+    <h1 class="pv-title">Sign in to your Atmosphere account</h1>
+    <p class="pv-lede">${esc(providerName(p))} hosts your account. Sign in here to continue to ${APP.name}.</p>
     <form class="form" data-form="signin" novalidate>
       <div class="field">
         <label for="username">Handle</label>
@@ -1470,9 +1466,9 @@ function submitCode(form) {
 function pvNewPassword(p) {
   const pv = PROVIDERS[p.provider];
   showProviderPage(p, '/account/password', 'New password', `
-    <div class="notice notice-ok">${icon('circle-check')}<p>You’re signed in to ${esc(pv.name)} as <strong>@${esc(p.handle)}</strong>.</p></div>
+    <div class="notice notice-ok">${icon('circle-check')}<p>You’re signed in to your Atmosphere account, <strong>@${esc(p.handle)}</strong>.</p></div>
     <h1 class="pv-title">Set a new password?</h1>
-    <p class="pv-lede">You’ll need it next time you sign in. You can also do this later in your ${esc(pv.name)} settings.</p>
+    <p class="pv-lede">You’ll need it next time you sign in. You can also do this later in your account settings on ${esc(pv.name)}.</p>
     <form class="form" data-form="newPassword" novalidate>
       <input class="sr-only" type="text" name="username" autocomplete="username" value="${esc(p.handle)}" readonly tabindex="-1" aria-hidden="true">
       <div class="field">
@@ -1493,10 +1489,10 @@ function pvSignup(pid) {
   const pv = PROVIDERS[pid];
   const persona = personaFor(SCENARIOS[S.scenario]);
   S.draft = { provider: pid };
-  showProviderPage({ provider: pid }, '/signup', 'Create an account', `
+  showProviderPage({ provider: pid }, '/signup', 'Create an Atmosphere account', `
     ${handshake({ provider: pid })}
-    <h1 class="pv-title">Create your ${esc(pv.name)} account</h1>
-    <p class="pv-lede">to use with ${APP.name} and other Atmosphere apps</p>
+    <h1 class="pv-title">Create your Atmosphere account</h1>
+    <p class="pv-lede">${esc(pv.name)} will host it. Use it with ${APP.name} and every other Atmosphere app.</p>
     <form class="form" data-form="signup" novalidate>
       <div class="field">
         <label for="signup-email">Email address</label>
@@ -1511,10 +1507,10 @@ function pvSignup(pid) {
         <p class="proto-hint">Any password works. Please don’t type a real one.</p>
         <div id="new-password-msg" class="field-msg" aria-live="polite"></div>
       </div>
-      <p class="fine">By creating an account you agree to ${esc(pv.name)}’s <a href="#" class="link" data-action="noop">Terms</a> and <a href="#" class="link" data-action="noop">Privacy Policy</a>.</p>
+      <p class="fine">By creating an Atmosphere account hosted by ${esc(pv.name)}, you agree to ${esc(pv.name)}’s <a href="#" class="link" data-action="noop">Terms</a> and <a href="#" class="link" data-action="noop">Privacy Policy</a>.</p>
       <button class="btn btn-primary btn-block" type="submit">Next: choose your handle</button>
     </form>
-    <p class="pv-alt">Already have an account? <button class="link-btn" type="button" data-action="backToFind">Sign in instead</button></p>`);
+    <p class="pv-alt">Already have an Atmosphere account? <button class="link-btn" type="button" data-action="backToFind">Sign in instead</button></p>`);
   enter('pv.signup');
 }
 
@@ -1626,7 +1622,7 @@ function permissionList({ withSwitch }) {
     <ul class="perm-list">
       <li>${icon('book-open')}<div class="perm-text"><strong>Save recipes and cookbooks to your account</strong><p>Why: so your recipes stay yours, even if you stop using ${APP.name}.</p></div></li>
       <li>${icon('user-round')}<div class="perm-text"><strong>Use your name and profile picture</strong><p>Why: so friends recognise you.</p></div></li>
-      <li class="${withSwitch ? 'perm-optional' : ''}">${icon('send')}<div class="perm-text"><strong>Post recipes you choose to share</strong><p>Why: so people who follow you on Bluesky and other apps can see them. Only when you press Share.</p>${withSwitch ? '<p><strong>Optional.</strong> You can switch this off.</p>' : ''}</div>${
+      <li class="${withSwitch ? 'perm-optional' : ''}">${icon('send')}<div class="perm-text"><strong>Post recipes you choose to share</strong><p>Why: so people who follow you on Bluesky and other Atmosphere apps can see them. Only when you press Share.</p>${withSwitch ? '<p><strong>Optional.</strong> You can switch this off.</p>' : ''}</div>${
         withSwitch ? '<label class="switch"><input type="checkbox" checked data-perm="post"><span class="switch-ui" aria-hidden="true"></span><span class="sr-only">Allow Potluck to post recipes you choose to share</span></label>' : ''
       }</li>
     </ul>`;
@@ -1637,15 +1633,15 @@ function consentMarkup(p, firstParty) {
   if (firstParty) {
     return `
       ${twoAccounts(p)}
-      <h1 class="pv-title">Your Potluck account is ready</h1>
-      <p class="pv-lede">Potluck looks after this account, so it can save your recipes to it straight away.</p>
+      <h1 class="pv-title">Your Atmosphere account is ready</h1>
+      <p class="pv-lede">Potluck hosts it, so your recipes can be saved to it straight away.</p>
       <details class="perm-details"><summary>What Potluck can do with your account</summary>${permissionList({ withSwitch: false })}</details>
       <button class="btn btn-primary btn-block" type="button" data-action="consentApprove">Start cooking</button>
-      <p class="fine">It’s also an Atmosphere account, so you can use it to sign in to Bluesky and other apps.</p>`;
+      <p class="fine">It’s one account for Potluck, Bluesky and every other Atmosphere app, so you can use it to sign in to all of them.</p>`;
   }
   return `
     ${twoAccounts(p)}
-    <h1 class="pv-title">Connect ${APP.name} to your ${esc(pv.name)} account?</h1>
+    <h1 class="pv-title">Connect ${APP.name} to your Atmosphere account?</h1>
     <div class="acct-chip">${accountRow(p, { meta: false })}<button type="button" class="link-btn" data-action="changeAccount">Not you?</button></div>
     <section class="perm-block" aria-labelledby="perm-can">
       <h2 class="perm-heading" id="perm-can">${APP.name} will be able to</h2>
@@ -1670,7 +1666,7 @@ function consentMarkup(p, firstParty) {
       <button class="btn btn-secondary" type="button" data-action="consentCancel">Cancel</button>
       <button class="btn btn-primary" type="button" data-action="consentApprove">Connect</button>
     </div>
-    <p class="fine verified">${icon('shield-check')}<span>${pv.name} has checked this request comes from <strong>${APP.domain}</strong>. You can disconnect ${APP.name} at any time in your ${esc(pv.name)} settings.</span></p>`;
+    <p class="fine verified">${icon('shield-check')}<span>${pv.name} has checked this request comes from <strong>${APP.domain}</strong>. You can disconnect ${APP.name} at any time in your account settings on ${esc(pv.name)}.</span></p>`;
 }
 
 function pvConsent(p) {
@@ -1969,7 +1965,7 @@ document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.name === 'provider' && t.closest('form[data-form="create"]')) {
     q('#other-server').hidden = t.value !== 'other';
-    q('#create-submit').textContent = t.value === 'other' ? 'Create my account with this provider' : `Create my account with ${PROVIDERS[t.value].name}`;
+    q('#create-submit').textContent = t.value === 'other' ? 'Create my Atmosphere account with this provider' : `Create my Atmosphere account with ${PROVIDERS[t.value].name}`;
     if (t.value === 'other') q('#server').focus();
   }
 });

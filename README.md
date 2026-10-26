@@ -24,13 +24,15 @@ The prototype is published from `main` at [frontdoor.renderg.host](https://front
 
 Pick one from the bar at the top. Each resets the prototype with a different person and browser state.
 
+The idea every scenario has to land: **one Atmosphere account works everywhere.** The account is always called an Atmosphere account. Bluesky, Blacksky, Eurosky, Potluck and others are providers that host it, and the copy always names them as the host ("hosted by Bluesky"), never as the name of the account.
+
 | # | Scenario | Person | What it shows |
 | - | -------- | ------ | ------------- |
-| 1 | New to the Atmosphere | Jo Park | Creating an account, hosted by Potluck itself or by any other provider |
-| 2 | Knows their details | Sam Okafor, Bluesky | Forgiving handle entry, provider sign-in, the redesigned consent screen, then a one-tap return visit |
-| 3 | Forgot their details | Rae Thompson, Blacksky | Recovering the handle and signing in with an emailed code |
-| 4 | Several accounts | Alex Moreno, three accounts | The browser account chooser (FedCM), then consent in a new tab that closes once Potluck is connected |
-| 5 | Has one, doesn't know it | Priya Shah, Bluesky | Sign-up that finds the existing account before a duplicate is made |
+| 1 | New to the Atmosphere | Jo Park | Creating an Atmosphere account, hosted by Potluck itself or by any other provider |
+| 2 | Knows their details | Sam Okafor, hosted by Bluesky | Forgiving handle entry, provider sign-in, the redesigned consent screen, then a one-tap return visit |
+| 3 | Forgot their details | Rae Thompson, hosted by Blacksky | Recovering the handle and signing in with an emailed code |
+| 4 | Several accounts | Alex Moreno, three Atmosphere accounts | The browser account chooser (FedCM), then consent in a new tab that closes once Potluck is connected |
+| 5 | Has one, doesn't know it | Priya Shah, hosted by Bluesky | Sign-up that finds the existing account before a duplicate is made |
 
 The simulated browser has working tabs. Anything that would open separately in real life opens in a new tab: the inbox, a link in an email, and the provider's consent step after the browser chooser. A tab opened for signing in closes itself once sign-in is done, and Potluck's tab picks up the session. You can switch between tabs and close them; Potluck's own tab stays open because it runs the demo.
 
@@ -50,14 +52,14 @@ The **Notes** panel explains each screen as you go: who owns it, which design pr
 
 These are starting positions to test, not conclusions. The numbers refer to the decision log in *Atmosphere Front Door: Design Direction and Next Steps*.
 
-- **One door (D10).** The button says "Continue with Atmosphere" and covers both signing in and signing up. A plain-language line under it names Bluesky (D2).
+- **One door (D10).** The button says "Continue with Atmosphere" and covers both signing in and signing up. The line under it tells Bluesky users they already have an Atmosphere account (D2).
 - **No intermediary page (D4).** Front Door runs inside the app. The only domains people see are the app's and their provider's.
 - **Forgiving input.** It accepts a leading `@`, email-style handles (`sam@bsky.social`), common mix-ups (`bsky.app`, `blacksky.community`), names and profile links, and suggests accounts as you type.
 - **Duplicate prevention (D7).** The existing-account check sits inline at the top of sign-up. Where the browser knows an account, Front Door offers it before anything is created.
 - **Provider listing (D9).** The app pins its own hosting as the default. Everyone else is listed A to Z.
 - **Email recovery (D6).** Front Door never looks up emails. The provider emails the account owner, and the screen never reveals whether an account exists.
-- **Consent (D8).** Framed as connecting two accounts, with both shown. Permissions are in the app's words, each with a reason, and optional ones can be switched off. Accounts made for the app get a shorter summary.
-- **Brand architecture (D3).** The provider names the account ("Bluesky account") and the Atmosphere mark says where it works.
+- **Consent (D8).** Framed as connecting the app to your Atmosphere account, with both shown and the provider named as its host. Permissions are in the app's words, each with a reason, and optional ones can be switched off. Accounts made for the app get a shorter summary.
+- **One Atmosphere account (D1, D3).** The account is always an Atmosphere account, on every screen and in every email. Providers are named as its host ("hosted by Bluesky"). This goes further than the decision log's "issuer and network" leaning, where providers named the account, so it needs testing with operators such as Blacksky.
 - **After sign-in.** The network is explained once people are in, not at the door.
 
 ## Colour
