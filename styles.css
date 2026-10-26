@@ -378,21 +378,68 @@ a {
   border: 1px solid var(--line-strong);
 }
 
+.tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
 .tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 1 230px;
+  min-width: 0;
+  border-radius: 10px 10px 0 0;
+}
+
+.tab:not(.is-active):hover {
+  background: rgb(0 0 0 / 0.05);
+}
+
+.tab.is-active {
+  background: var(--paper);
+}
+
+.tab.is-new {
+  animation: drop 0.25s ease-out;
+}
+
+/* A thin divider between neighbouring background tabs, as browsers draw it. */
+.tab:not(.is-active) + .tab:not(.is-active)::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 9px;
+  bottom: 9px;
+  width: 1px;
+  background: var(--line-strong);
+}
+
+.tab-main {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-  width: min(250px, 100%);
-  min-width: 0;
-  padding: 8px 12px;
-  background: var(--paper);
+  padding: 8px 4px 8px 12px;
+  border: 0;
   border-radius: 10px 10px 0 0;
+  background: none;
   font-size: 12.5px;
   font-weight: 500;
+  text-align: left;
+}
+
+.tab.is-active .tab-main {
+  font-weight: 600;
 }
 
 .tab-icon {
   display: inline-flex;
+  flex: none;
 }
 
 .tab-title {
@@ -403,9 +450,39 @@ a {
   white-space: nowrap;
 }
 
-.tab-x {
-  width: 14px;
-  height: 14px;
+.tab-close {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+}
+
+.tab-close:hover {
+  background: rgb(0 0 0 / 0.08);
+}
+
+.tab-close .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.tab-new {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 0 4px 4px;
+  flex: none;
+}
+
+.tab-new .icon {
+  width: 15px;
+  height: 15px;
 }
 
 .chrome-bar {
@@ -468,6 +545,11 @@ a {
   container: viewport / inline-size;
 }
 
+.tab-view {
+  position: absolute;
+  inset: 0;
+}
+
 .page {
   height: 100%;
   overflow: auto;
@@ -487,10 +569,6 @@ a {
 
 .layer-sheet {
   background: var(--scrim);
-}
-
-.layer-popup {
-  background: rgb(0 0 0 / 0.14);
 }
 
 .fedcm {
@@ -645,6 +723,10 @@ a {
 .atmo-btn .mark {
   width: 24px;
   height: 24px;
+}
+
+.atmo-btn span {
+  white-space: nowrap;
 }
 
 /* ---------- Forms ---------- */
@@ -1304,7 +1386,7 @@ a {
   text-align: center;
 }
 
-@container viewport (min-width: 820px) {
+@container viewport (min-width: 920px) {
   .pl-signin {
     grid-template-columns: 1.15fr 1fr;
     gap: 56px;
@@ -1314,7 +1396,9 @@ a {
   .pl-card {
     order: 0;
   }
+}
 
+@container viewport (min-width: 720px) {
   .pl-nav {
     display: flex;
   }
@@ -1501,19 +1585,38 @@ a {
 
 .am-who {
   display: flex;
-  padding: 8px;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 4px;
+  padding: 8px 8px 12px;
+  border-bottom: 1px solid var(--line);
 }
 
-.am-issuer {
+.am-who-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.am-eyebrow {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 0 8px 6px;
-  padding: 6px 10px;
-  border-radius: var(--r-sm);
-  background: var(--smoke);
+  padding: 6px 8px 2px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.am-host {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
   font-size: 12.5px;
-  font-weight: 550;
 }
 
 .am-item {
@@ -1595,6 +1698,15 @@ a {
   width: 26px;
   height: 26px;
   color: var(--link-800);
+}
+
+.sheet-hero.is-ok {
+  background: var(--accent-50);
+  border-color: var(--accent-300);
+}
+
+.sheet-hero.is-ok .icon {
+  color: var(--accent-900);
 }
 
 .sheet-links {
@@ -2112,24 +2224,6 @@ a {
   text-align: center;
 }
 
-.pv-compact .pv-main {
-  width: 100%;
-  margin: 0;
-  border: 0;
-  border-radius: 0;
-  padding: 22px;
-}
-
-.pv-compact .pv-head {
-  padding: 10px 16px;
-}
-
-.pv-compact .pv-foot {
-  padding: 12px 16px 16px;
-  border-top: 1px solid var(--line);
-  background: var(--paper);
-}
-
 .handshake {
   display: flex;
   align-items: center;
@@ -2146,53 +2240,75 @@ a {
   min-width: 0;
 }
 
+/* The app and the Atmosphere account, stacked, with the link on the seam. */
 .two-accounts {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 12px;
-}
-
-.ta-item {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 4px;
-  width: 140px;
-  min-width: 0;
-  text-align: center;
+  width: 100%;
 }
 
-.ta-item > .tile,
-.ta-item > .avatar {
-  margin-bottom: 4px;
+.ta-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--paper);
+}
+
+.ta-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .ta-label {
-  max-width: 100%;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
 .ta-sub {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  min-width: 0;
   font-size: 12.5px;
 }
 
+.ta-sub > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Centred on the seam between the boxes, in line with their icons
+   (box border 1px + padding 14px + half of a 36px icon). */
 .ta-link {
+  position: absolute;
+  top: 50%;
+  left: 33px;
+  z-index: 1;
+  transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  margin-top: 13px;
-  flex: none;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  border: 1px solid var(--accent-500);
+  border: 1px solid var(--accent-600);
   background: var(--accent-100);
+  box-shadow: 0 0 0 3px var(--paper);
+}
+
+.ta-link .icon {
+  width: 14px;
+  height: 14px;
 }
 
 .acct-chip {
@@ -2405,49 +2521,6 @@ a {
   font-weight: 600;
 }
 
-/* ---------- Pop-up window (FedCM continuation) ---------- */
-
-.popup {
-  display: flex;
-  flex-direction: column;
-  width: min(460px, 100%);
-  max-height: 100%;
-  background: var(--paper);
-  border: 1px solid var(--line-strong);
-  border-radius: 12px;
-  box-shadow: var(--shadow-3);
-  overflow: hidden;
-  animation: rise 0.22s ease-out;
-}
-
-.popup-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 6px 6px 12px;
-  background: var(--smoke);
-  border-bottom: 1px solid var(--line);
-  font-size: 13px;
-}
-
-.popup-bar > .icon {
-  width: 13px;
-  height: 13px;
-}
-
-.popup-url {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.popup-body {
-  min-height: 0;
-  overflow: auto;
-}
-
 /* ---------- Notification and Mail ---------- */
 
 .notification {
@@ -2509,57 +2582,163 @@ a {
   right: 6px;
 }
 
-.mail {
-  width: min(580px, calc(100vw - 32px));
-  max-height: calc(100dvh - 48px);
-  padding: 0;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-md);
+/* Webmail, in its own tab */
+
+.wm {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
   background: var(--paper);
-  box-shadow: var(--shadow-3);
-  color: var(--ink);
 }
 
-.mail::backdrop {
-  background: var(--scrim);
-}
-
-.mail-bar {
+.wm-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 8px 8px 16px;
+  gap: 10px;
+  padding: 12px 20px;
   background: var(--smoke);
   border-bottom: 1px solid var(--line);
+}
+
+.wm-brand {
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.wm-account {
+  margin-left: auto;
   font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.wm-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+}
+
+.wm-list {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.wm-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wm-list-title {
+  padding: 4px 10px 8px;
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.wm-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: none;
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.wm-item:hover {
+  background: var(--smoke);
+}
+
+.wm-item.is-open {
+  background: var(--accent-50);
+  border-color: var(--accent-300);
+}
+
+.wm-from {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 650;
+}
+
+.wm-item.is-unread .wm-from::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent-700);
+}
+
+.wm-item.is-unread .wm-subject {
   font-weight: 700;
 }
 
-.mail-bar .icon-btn {
-  margin-left: auto;
+.wm-subject {
+  font-weight: 550;
+}
+
+.wm-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.wm-read {
+  min-width: 0;
+  max-width: 700px;
+}
+
+@container viewport (min-width: 760px) {
+  .wm-body {
+    grid-template-columns: 300px minmax(0, 1fr);
+    align-content: stretch;
+  }
+
+  .wm-list {
+    border-bottom: 0;
+    border-right: 1px solid var(--line);
+  }
 }
 
 .mail-head {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 18px 24px 14px;
+  padding: 22px 28px 14px;
   border-bottom: 1px solid var(--line);
   font-size: 13.5px;
 }
 
-.mail-head h2 {
-  font-size: 20px;
+.mail-head h1 {
+  margin-bottom: 4px;
+  font-size: 22px;
   font-weight: 750;
   letter-spacing: -0.02em;
-  margin-bottom: 4px;
+  line-height: 1.25;
 }
 
 .mail-body {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 14px;
-  padding: 20px 24px 26px;
+  padding: 20px 28px 32px;
+}
+
+.mail-body .mail-facts {
+  align-self: stretch;
 }
 
 .mail-facts {
@@ -2933,8 +3112,12 @@ body[data-notes="closed"] .notes {
     flex-wrap: wrap;
   }
 
-  .ta-item {
-    width: 110px;
+  .banner-text {
+    flex-basis: calc(100% - 60px);
+  }
+
+  .banner .btn {
+    margin-left: 60px;
   }
 }
 
@@ -2986,9 +3169,18 @@ body[data-notes="closed"] .notes {
     box-shadow: none;
   }
 
-  .chrome-tabs,
+  .dots,
+  .tab-new,
   .chrome-bar .nav-btn {
     display: none;
+  }
+
+  .chrome-tabs {
+    padding: 6px 6px 0;
+  }
+
+  .tab {
+    flex-basis: 160px;
   }
 
   .chrome-bar {

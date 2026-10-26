@@ -32,11 +32,7 @@
         <div class="chrome">
           <div class="chrome-tabs">
             <div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>
-            <div class="tab">
-              <span class="tab-icon" id="tab-icon" aria-hidden="true"></span>
-              <span class="tab-title" id="tab-title"></span>
-              <i data-lucide="x" class="icon tab-x" aria-hidden="true"></i>
-            </div>
+            <div class="tabs" id="tabs" role="tablist" aria-label="Browser tabs"></div>
           </div>
           <div class="chrome-bar">
             <span class="nav-btn" aria-hidden="true"><i data-lucide="arrow-left" class="icon"></i></span>
@@ -50,8 +46,7 @@
           </div>
         </div>
         <div class="viewport" id="viewport">
-          <div class="page" id="page"></div>
-          <div class="layer" id="layer" hidden></div>
+          <!-- Each browser tab adds its own page here. -->
           <div class="fedcm" id="fedcm" hidden></div>
           <div class="toast" id="toast" role="status" hidden></div>
         </div>
@@ -71,7 +66,6 @@
   </div>
 
   <div class="notification" id="notification" hidden></div>
-  <dialog class="mail" id="mail" aria-labelledby="mail-subject"></dialog>
   <div class="sr-only" id="live" aria-live="polite"></div>
   <noscript><p class="noscript">This prototype needs JavaScript to run.</p></noscript>
 </body>
