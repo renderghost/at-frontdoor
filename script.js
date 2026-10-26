@@ -9,7 +9,12 @@
      Front Door the shared component, running inside the app (no extra server)
      Browser    the FedCM account chooser, drawn by the browser itself
      Provider   where the account lives (Bluesky, Blacksky, Eurosky…)
-     Inbox      the person's own email */
+     Inbox      the person's own email
+
+   The simulated browser has real tabs. Anything that would open separately
+   in real life (the inbox, a link in an email, the provider's consent step
+   after the browser chooser) opens in a new tab, and auth tabs close
+   themselves once sign-in is done. */
 
 'use strict';
 
@@ -102,7 +107,7 @@ const SCENARIOS = {
     tryThis: [
       'Press <strong>Continue with Atmosphere</strong>, then <strong>Forgot your handle?</strong>',
       'Use Rae’s email and pick Blacksky, or “Not sure”.',
-      'Open the email when it arrives (top right).',
+      'Open the email when it arrives (top right). The inbox opens in a new tab, and the link in the email opens Blacksky in another. That tab closes once Rae is signed in.',
     ],
     data: [['Email', 'rae.thompson@example.com'], ['Provider', 'Blacksky'], ['Code', 'shown in the email']],
   },
@@ -114,7 +119,7 @@ const SCENARIOS = {
     situation: 'Alex has three accounts: a personal one on Bluesky, a cooking one on Eurosky and a work one on a custom domain. This browser has seen all three.',
     tryThis: [
       'Press <strong>Continue with Atmosphere</strong>. The browser lists Alex’s accounts.',
-      'Pick the cooking account, Alex Cooks.',
+      'Pick the cooking account, Alex Cooks. Eurosky asks for consent in a new tab, which closes once Potluck is connected.',
       'Try the account menu afterwards to switch accounts.',
     ],
     data: [['Accounts', '3, remembered by the browser'], ['Password', 'not needed']],
@@ -226,7 +231,7 @@ const STEPS = {
   },
   'mail.open': {
     title: 'Email from the provider', owner: 'inbox', journey: [], event: 'inbox.email_opened',
-    what: 'Emails come from the provider that holds the account, not from Potluck or Atmosphere. A recovery email carries the forgotten handle and a one-time code. A welcome email repeats the handle so it’s easy to find later.',
+    what: 'The email opens in the person’s own inbox, in its own tab. It comes from the provider that holds the account, not from Potluck or Atmosphere. A recovery email carries the forgotten handle and a one-time code, and its link opens the provider in a new tab. A welcome email repeats the handle so it’s easy to find later.',
     principles: ['issuer', 'handshake'],
     open: 'Should every provider email say which app asked for it?',
   },
@@ -239,7 +244,7 @@ const STEPS = {
   },
   'pv.code': {
     title: 'Sign in with an emailed code', owner: 'provider', journey: ['auth'], event: 'provider.code_shown',
-    what: 'The code from the email signs the person in. The browser offers to fill it in from Mail, as phones already do.',
+    what: 'The code from the email signs the person in. Opened from the email’s link, this page is in a new tab with the code already filled in. Otherwise the browser offers to fill it in from Mail, as phones already do.',
     principles: ['forgive'],
     quote: ['ideally, there would be still a way to just put in your email and then log in with that.', 'Holke, Hypercerts'],
     open: 'Should providers offer code sign-in all the time, not only for recovery?',
@@ -271,12 +276,12 @@ const STEPS = {
     quote: ['That sounds like, Oh, they’re asking for root access to my account.', 'Eli, Streamplace'],
     open: 'Per-permission reasons need a new client-metadata field, which is a protocol change. D8: who owns this screen’s design.',
   },
-  'pv.consentPopup': {
-    title: 'Consent in a pop-up', owner: 'provider', journey: ['consent'], event: 'provider.consent_shown',
-    what: 'After an account is picked in the browser chooser, the provider asks for consent in a pop-up window (FedCM’s “continue on” step). Potluck’s page stays put underneath, and the pop-up shows the provider’s own address.',
+  'pv.consentTab': {
+    title: 'Consent in a new tab', owner: 'provider', journey: ['consent'], event: 'provider.consent_shown',
+    what: 'The account came from the browser, so the provider asks for consent in a new tab on its own address. Potluck’s tab stays where it was. Once Potluck is connected, this tab closes and Potluck’s tab is signed in. (FedCM opens this step as a pop-up window; the prototype uses a tab so it’s easier to read.)',
     principles: ['handshake', 'ownWords'],
     quote: ['it’d be really nice if like on that OAuth screen, they could see Anisota’s logo somewhere as like the app that they’re trying to connect to.', 'Dame, Anisota'],
-    open: 'Pop-ups are easy to lose behind other windows on desktop. Test whether people find their way back.',
+    open: 'New tabs and pop-ups are easy to lose behind other windows. Test whether people find their way back to Potluck.',
   },
   'pv.consentFirst': {
     title: 'Consent for an account made here', owner: 'provider', journey: ['consent'], event: 'provider.consent_shown',
@@ -311,11 +316,14 @@ function freshState(id) {
     approved: new Set(), // handles already connected to Potluck
     created: [], // accounts made during this run
     signedIn: null,
-    pending: null, // { profile, isNew } while a sign-in is in progress
+    pending: null, // { profile, isNew, via } while a sign-in is in progress
     draft: {},
     code: null,
     declinedPost: false,
-    consentInPopup: false,
+    appTab: null, // Potluck's tab, where the demo starts
+    authTab: null, // a provider tab opened for signing in
+    mailTab: null, // the person's inbox
+    mailOpen: null, // the email shown in the inbox
     flash: null,
     step: null,
     visited: new Set(),
@@ -341,17 +349,14 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const els = {
   scenarioNav: $('#scenario-nav'),
   notesToggle: $('#notes-toggle'),
-  tabIcon: $('#tab-icon'),
-  tabTitle: $('#tab-title'),
+  tabs: $('#tabs'),
   omnibox: $('#omnibox'),
   urlHost: $('#url-host'),
   urlPath: $('#url-path'),
-  page: $('#page'),
-  layer: $('#layer'),
+  viewport: $('#viewport'),
   fedcm: $('#fedcm'),
   toast: $('#toast'),
   notif: $('#notification'),
-  mail: $('#mail'),
   notesScenario: $('#notes-scenario'),
   notesStep: $('#notes-step'),
   notesJourney: $('#notes-journey'),
@@ -449,11 +454,11 @@ function focusIn(root) {
 }
 
 function fieldMsg(field, type, html) {
-  const box = $(`#${field}-msg`);
+  const box = q(`#${field}-msg`);
   if (!box) return;
   const icons = { error: 'circle-alert', info: 'info', auto: 'wand-sparkles', ok: 'circle-check' };
   box.innerHTML = html ? `<div class="notice notice-${type}">${icon(icons[type])}<p>${html}</p></div>` : '';
-  const input = $(`#${field}`);
+  const input = q(`#${field}`);
   if (input) input.setAttribute('aria-invalid', String(type === 'error' && Boolean(html)));
   paintIcons();
 }
@@ -470,40 +475,139 @@ function passwordInput(id, autocomplete) {
 /* Browser, layers and notes                                                */
 /* ------------------------------------------------------------------------ */
 
-function setBrowser({ host, path = '', title, favicon }) {
-  const moved = els.urlHost.textContent !== host;
-  els.urlHost.textContent = host;
-  els.urlPath.textContent = path;
-  els.tabTitle.textContent = title;
-  els.tabIcon.innerHTML = favicon;
-  if (moved) {
+// Each tab keeps its own page and overlay, so switching back and forth
+// leaves everything where it was.
+const tabs = [];
+let activeTabId = null;
+let tabCounter = 0;
+let shownHost = '';
+
+const currentTab = () => tabs.find((t) => t.id === activeTabId);
+const tabById = (id) => tabs.find((t) => t.id === id);
+const inAuthTab = () => currentTab()?.role === 'auth';
+// Look things up in the tab on screen, so tabs never trip over each other's IDs.
+// Returns null while tabs are being rebuilt, e.g. when a scenario restarts.
+const q = (sel) => currentTab()?.view.querySelector(sel) ?? null;
+
+function openTab(role) {
+  const view = document.createElement('div');
+  view.className = 'tab-view';
+  view.innerHTML = '<div class="page"></div><div class="layer" hidden></div>';
+  els.viewport.insertBefore(view, els.fedcm);
+  const tab = {
+    id: `tab-${++tabCounter}`,
+    role,
+    host: '',
+    path: '',
+    title: 'New tab',
+    favicon: icon('globe'),
+    fresh: true,
+    view,
+    page: view.querySelector('.page'),
+    layer: view.querySelector('.layer'),
+  };
+  tabs.push(tab);
+  activateTab(tab.id);
+  return tab;
+}
+
+function activateTab(id) {
+  closeFedcm();
+  activeTabId = id;
+  tabs.forEach((t) => {
+    t.view.hidden = t.id !== id;
+  });
+  renderChrome();
+}
+
+function closeTab(id, { to } = {}) {
+  const index = tabs.findIndex((t) => t.id === id);
+  if (index < 0) return;
+  const [tab] = tabs.splice(index, 1);
+  tab.view.remove();
+  if (S.authTab === id) S.authTab = null;
+  if (S.mailTab === id) S.mailTab = null;
+  if (activeTabId === id) activateTab(tabById(to) ? to : (tabs[index - 1] || tabs[0]).id);
+  else renderChrome();
+}
+
+// Closing a tab by hand. Potluck's tab stays, because it runs the demo.
+function requestCloseTab(id) {
+  const tab = tabById(id);
+  if (!tab) return;
+  if (tab.role === 'app') {
+    toast('Potluck’s tab runs the prototype, so it stays open. Use Restart to start again.');
+    return;
+  }
+  if (tab.role === 'auth') {
+    track('provider.tab_closed');
+    S.pending = null;
+    S.flowStart = null;
+    closeTab(id, { to: S.appTab });
+    return;
+  }
+  closeTab(id);
+}
+
+function goToAppTab() {
+  if (S.appTab && activeTabId !== S.appTab) activateTab(S.appTab);
+}
+
+function renderChrome() {
+  const active = currentTab();
+  els.tabs.innerHTML = `${tabs
+    .map((t) => {
+      const on = t.id === activeTabId;
+      return `
+        <div class="tab${on ? ' is-active' : ''}${t.fresh ? ' is-new' : ''}">
+          <button class="tab-main" type="button" role="tab" aria-selected="${on}" data-tab="${t.id}"><span class="tab-icon" aria-hidden="true">${t.favicon}</span><span class="tab-title">${esc(t.title)}</span></button>
+          <button class="tab-close" type="button" data-tab-close="${t.id}" aria-label="Close tab: ${esc(t.title)}">${icon('x')}</button>
+        </div>`;
+    })
+    .join('')}<span class="tab-new" aria-hidden="true">${icon('plus')}</span>`;
+  tabs.forEach((t) => {
+    t.fresh = false;
+  });
+  els.urlHost.textContent = active.host;
+  els.urlPath.textContent = active.path;
+  if (active.host !== shownHost) {
+    shownHost = active.host;
     els.omnibox.classList.remove('is-new');
     void els.omnibox.offsetWidth;
     els.omnibox.classList.add('is-new');
-    announce(`Now on ${host}`);
+    if (active.host) announce(`Now on ${active.host}`);
   }
+  paintIcons();
+}
+
+function setBrowser({ host, path = '', title, favicon }) {
+  Object.assign(currentTab(), { host, path, title, favicon });
+  renderChrome();
 }
 
 function closeLayer() {
-  els.layer.hidden = true;
-  els.layer.innerHTML = '';
-  els.page.inert = Boolean(!els.fedcm.hidden);
+  const tab = currentTab();
+  tab.layer.hidden = true;
+  tab.layer.innerHTML = '';
+  tab.page.inert = !els.fedcm.hidden;
 }
 
 function closeFedcm() {
   els.fedcm.hidden = true;
   els.fedcm.innerHTML = '';
-  els.page.inert = Boolean(!els.layer.hidden);
+  const tab = currentTab();
+  if (tab) tab.page.inert = !tab.layer.hidden;
 }
 
 function showPage(markup, browser) {
   closeLayer();
   closeFedcm();
   setBrowser(browser);
-  els.page.innerHTML = markup;
-  els.page.scrollTop = 0;
+  const { page } = currentTab();
+  page.innerHTML = markup;
+  page.scrollTop = 0;
   paintIcons();
-  focusIn(els.page);
+  focusIn(page);
 }
 
 function sheet(body, { back } = {}) {
@@ -519,26 +623,13 @@ function sheet(body, { back } = {}) {
 
 function showSheet(markup) {
   closeFedcm();
-  els.layer.className = 'layer layer-sheet';
-  els.layer.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">${markup}</div>`;
-  els.layer.hidden = false;
-  els.page.inert = true;
+  const tab = currentTab();
+  tab.layer.className = 'layer layer-sheet';
+  tab.layer.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">${markup}</div>`;
+  tab.layer.hidden = false;
+  tab.page.inert = true;
   paintIcons();
-  focusIn(els.layer);
-}
-
-function showPopup(p, path, inner) {
-  closeFedcm();
-  els.layer.className = 'layer layer-popup';
-  els.layer.innerHTML = `
-    <div class="popup" role="dialog" aria-modal="true" aria-label="${esc(providerName(p))} pop-up window">
-      <div class="popup-bar">${icon('lock')}<span class="popup-url"><strong>${esc(hostFor(p))}</strong>${path}</span><button class="icon-btn icon-btn-sm" type="button" data-action="consentCancel" aria-label="Close pop-up">${icon('x')}</button></div>
-      <div class="popup-body">${providerFrame(p.provider, inner, { compact: true })}</div>
-    </div>`;
-  els.layer.hidden = false;
-  els.page.inert = true;
-  paintIcons();
-  focusIn(els.layer);
+  focusIn(tab.layer);
 }
 
 function enter(stepId) {
@@ -635,6 +726,7 @@ function food(r) {
 }
 
 function appSignin({ quiet = false } = {}) {
+  goToAppTab();
   const flash = S.flash;
   S.flash = null;
   const flashMarkup = {
@@ -716,6 +808,7 @@ function recipeCard(r) {
 }
 
 function appHome({ isNew = false } = {}) {
+  goToAppTab();
   const p = S.signedIn;
   showPage(`
     <div class="potluck">
@@ -759,7 +852,7 @@ function fedcmChoose() {
       <p class="fedcm-fine">Your browser shows Atmosphere accounts you’ve used on this device. ${APP.name} doesn’t see them unless you pick one.</p>
     </div>`;
   els.fedcm.hidden = false;
-  els.page.inert = true;
+  currentTab().page.inert = true;
   paintIcons();
   focusIn(els.fedcm);
   els.fedcm.querySelector('[data-action="fedcmPick"]')?.focus();
@@ -780,14 +873,17 @@ function fedcmPick(handle) {
 
 function continueWithBrowserAccount(handle) {
   const p = profile(handle);
-  S.pending = { profile: p, isNew: false };
+  S.pending = { profile: p, isNew: false, via: 'browser' };
   S.flowStart = S.flowStart || Date.now();
   if (S.approved.has(handle)) {
     track('browser.returning_sign_in');
     completeSignIn();
     return;
   }
-  pvConsent(p, { popup: true });
+  // The provider asks for consent in its own tab, which closes once it's done.
+  S.authTab = openTab('auth').id;
+  track('browser.provider_tab_opened', providerName(p));
+  pvConsent(p);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -875,7 +971,7 @@ function fdFind({ mode = 'signin' } = {}) {
 }
 
 function renderCombo(input, items) {
-  const list = $('#handle-list');
+  const list = q('#handle-list');
   if (!list) return;
   combo.items = items;
   combo.active = -1;
@@ -895,10 +991,10 @@ function renderCombo(input, items) {
 }
 
 function setActive(index) {
-  const input = $('#handle');
+  const input = q('#handle');
   combo.active = index;
-  document.querySelectorAll('.combo-opt').forEach((el, i) => el.setAttribute('aria-selected', String(i === index)));
-  const option = $(`#opt-${index}`);
+  currentTab().view.querySelectorAll('.combo-opt').forEach((el, i) => el.setAttribute('aria-selected', String(i === index)));
+  const option = q(`#opt-${index}`);
   if (option) {
     input.setAttribute('aria-activedescendant', option.id);
     option.scrollIntoView({ block: 'nearest' });
@@ -1102,7 +1198,7 @@ function submitForgot(form) {
   const owner = allProfiles().find((p) => p.email && p.email.toLowerCase() === email.toLowerCase());
   // Only the provider that really holds the account sends anything, as in real life.
   if (owner && (choice === 'unsure' || choice === owner.provider)) {
-    later(() => deliverMail(recoveryMail(owner)), 2600);
+    later(() => deliverMail(recoveryMail(owner, { link: true })), 2600);
   }
   fdCheckEmail(email, choice);
 }
@@ -1128,9 +1224,14 @@ function fdCheckEmail(email, choice) {
 /* Mail                                                                     */
 /* ------------------------------------------------------------------------ */
 
-function recoveryMail(p) {
+// With a link when Front Door asked for it; code only when the person is
+// already on the provider's code page.
+function recoveryMail(p, { link }) {
   const pv = PROVIDERS[p.provider];
   S.code = newCode();
+  const next = link
+    ? `<p><button class="btn btn-primary" type="button" data-action="mailContinue" data-handle="${p.handle}">Continue signing in to ${APP.name}</button></p><p class="fine">The button opens ${esc(pv.name)} in a new tab with the code filled in.</p>`
+    : `<p>Enter the code on ${esc(pv.name)}’s page to carry on signing in to ${APP.name}.</p>`;
   return {
     id: `recovery-${Date.now()}`,
     from: pv.name,
@@ -1147,7 +1248,7 @@ function recoveryMail(p) {
         <div><dt>Your sign-in code</dt><dd class="code">${formatCode(S.code)}</dd></div>
       </dl>
       <p>The code works for 15 minutes.</p>
-      <p><button class="btn btn-primary" type="button" data-action="mailContinue" data-handle="${p.handle}">Continue signing in to ${APP.name}</button></p>
+      ${next}
       <p>If you didn’t ask for this, you can ignore this email. Nobody can get into your account without the code.</p>
       <p>${esc(pv.name)}</p>`,
   };
@@ -1165,7 +1266,7 @@ function welcomeMail(p) {
     body: `
       <p>Hi ${esc(first(p.name))},</p>
       <p>Welcome to ${esc(pv.name)}. Please confirm this is your email address, so you can get back into your account if you ever forget your password.</p>
-      <p><button class="btn btn-primary" type="button" data-action="mailConfirm">Confirm my email address</button></p>
+      <p><button class="btn btn-primary" type="button" data-action="mailConfirm" data-handle="${p.handle}">Confirm my email address</button></p>
       <dl class="mail-facts"><div><dt>Your handle</dt><dd>@${esc(p.handle)}</dd></div></dl>
       <p>Your handle works on Potluck, Bluesky and other Atmosphere apps. Keep this email: it’s an easy place to find your handle later.</p>
       <p>${esc(pv.name)}</p>`,
@@ -1187,44 +1288,75 @@ function deliverMail(m) {
   paintIcons();
   announce(`New email from ${m.from}: ${m.subject}`);
   track('inbox.email_arrived', m.from);
+  if (S.mailTab) renderMail(); // the inbox tab shows the new message and unread count
 
-  // The browser offers the code from Mail, as phones do, if the code screen is open.
-  const otp = $('#otp');
-  if (m.code && otp && !otp.value && !$('.autofill', otp.parentElement)) {
+  // The browser offers the code from Mail, as phones do, if a code page is open in any tab.
+  const otp = document.querySelector('.tab-view #otp');
+  if (m.code && otp && !otp.value && !otp.parentElement.querySelector('.autofill')) {
     otp.insertAdjacentHTML('afterend', autofillButton('otp', formatCode(m.code), 'From Mail', 'mail'));
     paintIcons();
   }
 }
 
-function openMail(id) {
-  const m = S.mailbox.get(id);
-  if (!m) return;
+// The person's inbox, in its own tab. Opening it again reuses that tab.
+function openMailTab(id) {
   els.notif.hidden = true;
-  els.mail.innerHTML = `
-    <div class="mail-bar">${icon('inbox')}<span>Mail</span><button class="icon-btn icon-btn-sm" type="button" data-action="closeMail" aria-label="Close Mail">${icon('x')}</button></div>
-    <div class="mail-head">
-      <h2 id="mail-subject">${esc(m.subject)}</h2>
-      <p><strong>${esc(m.from)}</strong> &lt;${esc(m.address)}&gt;</p>
-      <p>To ${esc(m.to)} · just now</p>
-    </div>
-    <div class="mail-body">${m.body}</div>`;
-  paintIcons();
-  if (!els.mail.open) els.mail.showModal();
+  if (S.mailTab && tabById(S.mailTab)) activateTab(S.mailTab);
+  else S.mailTab = openTab('mail').id;
+  if (id) S.mailOpen = id;
+  renderMail({ focus: true });
   enter('mail.open');
 }
 
-function closeMail() {
-  if (els.mail.open) els.mail.close();
+function renderMail({ focus = false } = {}) {
+  const tab = tabById(S.mailTab);
+  if (!tab) return;
+  const list = [...S.mailbox.values()].reverse();
+  const open = S.mailbox.get(S.mailOpen) || list[0];
+  if (open) {
+    open.read = true;
+    S.mailOpen = open.id;
+  }
+  const unread = list.filter((m) => !m.read).length;
+  Object.assign(tab, {
+    host: 'mail.example.com',
+    path: '/inbox',
+    title: unread ? `Inbox (${unread}) · Mail` : 'Inbox · Mail',
+    favicon: `<span class="tile tile-xs" aria-hidden="true">${icon('mail')}</span>`,
+  });
+  tab.page.innerHTML = `
+    <div class="wm">
+      <header class="wm-head">${icon('inbox')}<span class="wm-brand">Mail</span><span class="wm-account">${esc(open ? open.to : '')}</span></header>
+      <div class="wm-body">
+        <nav class="wm-list" aria-label="Inbox">
+          <p class="wm-list-title">Inbox</p>
+          <ul>${list
+            .map((m) => `<li><button type="button" class="wm-item${m.id === S.mailOpen ? ' is-open' : ''}${m.read ? '' : ' is-unread'}" data-action="openMail" data-id="${m.id}"${m.id === S.mailOpen ? ' aria-current="true"' : ''}><span class="wm-from">${esc(m.from)}</span><span class="wm-subject">${esc(m.subject)}</span><span class="wm-preview">${esc(m.preview)}</span></button></li>`)
+            .join('')}</ul>
+        </nav>
+        ${open ? `
+        <article class="wm-read" aria-labelledby="mail-subject">
+          <div class="mail-head">
+            <h1 id="mail-subject">${esc(open.subject)}</h1>
+            <p><strong>${esc(open.from)}</strong> &lt;${esc(open.address)}&gt;</p>
+            <p>To ${esc(open.to)} · just now</p>
+          </div>
+          <div class="mail-body">${open.body}</div>
+        </article>` : ''}
+      </div>
+    </div>`;
+  renderChrome();
+  if (focus && tab.id === activeTabId) focusIn(tab.page);
 }
 
 /* ------------------------------------------------------------------------ */
 /* Provider pages                                                           */
 /* ------------------------------------------------------------------------ */
 
-function providerFrame(pid, inner, { compact = false } = {}) {
+function providerFrame(pid, inner) {
   const pv = PROVIDERS[pid];
   return `
-    <div class="pv${compact ? ' pv-compact' : ''}">
+    <div class="pv">
       <header class="pv-head">${providerTile(pid, 'sm')}<span class="pv-name">${esc(pv.name)}</span><span class="pv-network">${mark('mark-xs')}<span>Atmosphere account</span></span></header>
       <main class="pv-main">${inner}</main>
       <footer class="pv-foot">${icon('lock')}<span>${
@@ -1260,7 +1392,7 @@ function twoAccounts(p) {
 
 function toProvider(handle) {
   const p = profile(handle);
-  S.pending = { profile: p, isNew: false };
+  S.pending = { profile: p, isNew: false, via: 'redirect' };
   track('frontdoor.sent_to_provider', providerName(p));
   pvSignin(p);
 }
@@ -1301,7 +1433,7 @@ function forgotPassword() {
   const p = S.pending.profile;
   track('provider.password_reset_requested');
   S.code = null;
-  later(() => deliverMail(recoveryMail(p)), 2200);
+  later(() => deliverMail(recoveryMail(p, { link: false })), 2200);
   pvCode(p);
 }
 
@@ -1445,7 +1577,7 @@ function pvHandle() {
 }
 
 function checkHandle() {
-  const input = $('#new-handle');
+  const input = q('#new-handle');
   if (!input) return false;
   const suffix = PROVIDERS[S.draft.provider].suffix;
   const local = normaliseHandle(input.value, suffix);
@@ -1480,7 +1612,7 @@ function submitHandle(form) {
   const name = $('#display-name', form).value.trim() || personaFor(SCENARIOS[S.scenario]).name;
   const p = { name, handle: `${normaliseHandle($('#new-handle', form).value, suffix)}.${suffix}`, provider: pid, email: S.draft.email };
   S.created.push(p);
-  S.pending = { profile: p, isNew: true };
+  S.pending = { profile: p, isNew: true, via: 'redirect' };
   S.flowStart = S.flowStart || Date.now();
   track('provider.account_created', PROVIDERS[pid].name);
   busy(form.querySelector('[type="submit"]'), 'Creating your account…');
@@ -1541,48 +1673,52 @@ function consentMarkup(p, firstParty) {
     <p class="fine verified">${icon('shield-check')}<span>${pv.name} has checked this request comes from <strong>${APP.domain}</strong>. You can disconnect ${APP.name} at any time in your ${esc(pv.name)} settings.</span></p>`;
 }
 
-function pvConsent(p, { popup = false } = {}) {
+function pvConsent(p) {
   const firstParty = Boolean(S.pending?.isNew) && p.provider === 'potluck';
-  const inner = consentMarkup(p, firstParty);
-  S.consentInPopup = popup;
-  if (popup) showPopup(p, '/oauth/authorize', inner);
-  else showProviderPage(p, '/oauth/authorize', `Connect ${APP.name}`, inner);
-  enter(popup ? 'pv.consentPopup' : firstParty ? 'pv.consentFirst' : 'pv.consent');
+  showProviderPage(p, '/oauth/authorize', `Connect ${APP.name}`, consentMarkup(p, firstParty));
+  enter(S.pending?.via === 'browser' ? 'pv.consentTab' : firstParty ? 'pv.consentFirst' : 'pv.consent');
 }
 
 function consentApprove(button) {
   const p = S.pending.profile;
-  const post = $('[data-perm="post"]');
+  const post = q('[data-perm="post"]');
   S.declinedPost = post ? !post.checked : false;
   if (S.declinedPost) track('provider.permission_declined', 'post recipes');
   track('provider.consent_approved');
   S.approved.add(p.handle);
   busy(button, 'Connecting…');
-  if (S.consentInPopup) {
-    later(() => {
-      closeLayer();
-      completeSignIn();
-    }, 700);
-  } else {
-    later(pvReturning, 600);
-  }
+  later(pvReturning, 600);
 }
 
 function consentCancel() {
   track('provider.consent_cancelled');
+  if (inAuthTab()) closeTab(S.authTab, { to: S.appTab });
   S.pending = null;
   S.flowStart = null;
   S.flash = 'cancelled';
   appSignin();
 }
 
+// In Potluck's own tab this is a redirect back. In a provider tab opened
+// for signing in, the tab closes and Potluck's tab picks up the session.
 function pvReturning() {
   const p = S.pending.profile;
-  showProviderPage(p, '/oauth/redirect', 'Returning', `<div class="returning">${twoAccounts(p)}<p class="returning-text">${icon('loader-circle', 'spin')}Taking you back to ${APP.name}…</p></div>`);
-  later(completeSignIn, 1100);
+  const ownTab = inAuthTab();
+  showProviderPage(p, '/oauth/redirect', 'Returning', `
+    <div class="returning">${twoAccounts(p)}
+      <p class="returning-text">${icon('loader-circle', 'spin')}${ownTab ? `Connected. Closing this tab and going back to ${APP.name}…` : `Taking you back to ${APP.name}…`}</p>
+    </div>`);
+  later(() => {
+    if (ownTab && S.authTab) {
+      track('provider.tab_closed_after_sign_in');
+      closeTab(S.authTab, { to: S.appTab });
+    }
+    completeSignIn();
+  }, ownTab ? 1400 : 1100);
 }
 
 function completeSignIn() {
+  goToAppTab();
   const { profile: p, isNew } = S.pending;
   S.signedIn = p;
   S.pending = null;
@@ -1647,15 +1783,16 @@ const ACTIONS = {
   toggleNew: (el) => {
     const open = el.getAttribute('aria-expanded') !== 'true';
     el.setAttribute('aria-expanded', String(open));
-    $('#new-account').hidden = !open;
+    q('#new-account').hidden = !open;
     if (open) track('frontdoor.new_account_anyway');
   },
 
   changeAccount: () => {
+    const fromBrowser = S.pending?.via === 'browser';
     S.pending = null;
-    if (!els.layer.hidden && els.layer.classList.contains('layer-popup')) {
-      closeLayer();
-      if (S.browserAccounts.length) fedcmChoose();
+    if (inAuthTab()) {
+      closeTab(S.authTab, { to: S.appTab });
+      if (fromBrowser && S.browserAccounts.length) fedcmChoose();
       else fdFind();
       return;
     }
@@ -1669,7 +1806,8 @@ const ACTIONS = {
   forgotPassword,
   resendCode: () => {
     track('provider.code_resent');
-    later(() => deliverMail(recoveryMail(S.pending.profile)), 1800);
+    const { profile: p, via } = S.pending;
+    later(() => deliverMail(recoveryMail(p, { link: via === 'email' })), 1800);
     toast('We’ve sent a new code. Use the latest email.', 'mail');
   },
   skipPassword: () => {
@@ -1677,7 +1815,7 @@ const ACTIONS = {
     pvConsent(S.pending.profile);
   },
   togglePassword: (el) => {
-    const input = $(`#${el.dataset.target}`);
+    const input = q(`#${el.dataset.target}`);
     const show = input.type === 'password';
     input.type = show ? 'text' : 'password';
     el.setAttribute('aria-pressed', String(show));
@@ -1686,37 +1824,45 @@ const ACTIONS = {
     paintIcons();
   },
   autofill: (el) => {
-    const input = $(`#${el.dataset.target}`);
+    const input = q(`#${el.dataset.target}`);
     input.value = el.dataset.value;
     input.dispatchEvent(new Event('input', { bubbles: true }));
     el.remove();
     input.focus();
   },
   useHandle: (el) => {
-    $('#new-handle').value = el.dataset.value;
+    q('#new-handle').value = el.dataset.value;
     checkHandle();
   },
   consentApprove: (el) => consentApprove(el),
   consentCancel: () => consentCancel(),
 
-  openMail: (el) => openMail(el.dataset.id),
-  closeMail: () => closeMail(),
+  openMail: (el) => openMailTab(el.dataset.id),
   hideNotification: () => {
     els.notif.hidden = true;
   },
+  // A link in an email opens the provider in a new tab, as it would for real.
   mailContinue: (el) => {
-    closeMail();
     const p = profile(el.dataset.handle);
-    S.pending = { profile: p, isNew: false };
+    S.pending = { profile: p, isNew: false, via: 'email' };
     S.flowStart = S.flowStart || Date.now();
     track('inbox.link_followed');
+    if (S.authTab && tabById(S.authTab)) activateTab(S.authTab);
+    else S.authTab = openTab('auth').id;
     pvCode(p, { prefilled: true });
   },
-  mailConfirm: () => {
-    closeMail();
+  mailConfirm: (el) => {
+    const p = profile(el.dataset.handle);
     track('provider.email_confirmed');
-    toast('Email address confirmed.', 'circle-check');
+    openTab('confirm');
+    showProviderPage(p, '/account/confirm-email', 'Email confirmed', `
+      <span class="sheet-hero is-ok">${icon('circle-check')}</span>
+      <h1 class="pv-title">Your email is confirmed</h1>
+      <p>If you ever forget your password, you can get back into <strong>@${esc(p.handle)}</strong> with this address.</p>
+      <p>You can close this tab now.</p>
+      <button class="btn btn-secondary" type="button" data-action="closeThisTab">Close this tab</button>`);
   },
+  closeThisTab: () => requestCloseTab(activeTabId),
 
   dismissBanner: (el) => el.closest('.banner').remove(),
   switchAccount: () => {
@@ -1769,6 +1915,16 @@ document.addEventListener('click', (e) => {
     startScenario(scenario.dataset.scenario);
     return;
   }
+  const closer = e.target.closest('[data-tab-close]');
+  if (closer) {
+    requestCloseTab(closer.dataset.tabClose);
+    return;
+  }
+  const tab = e.target.closest('[data-tab]');
+  if (tab) {
+    activateTab(tab.dataset.tab);
+    return;
+  }
   const option = e.target.closest('.combo-opt');
   if (option) {
     pickSuggestion(Number(option.dataset.index));
@@ -1804,7 +1960,7 @@ document.addEventListener('input', (e) => {
     renderCombo(t, suggestionsFor(t.value));
   } else if (t.id === 'new-handle') {
     checkHandle();
-  } else if (t.id && $(`#${t.id}-msg`) && t.getAttribute('aria-invalid') === 'true') {
+  } else if (t.id && q(`#${t.id}-msg`) && t.getAttribute('aria-invalid') === 'true') {
     fieldMsg(t.id, 'error', '');
   }
 });
@@ -1812,9 +1968,9 @@ document.addEventListener('input', (e) => {
 document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.name === 'provider' && t.closest('form[data-form="create"]')) {
-    $('#other-server').hidden = t.value !== 'other';
-    $('#create-submit').textContent = t.value === 'other' ? 'Create my account with this provider' : `Create my account with ${PROVIDERS[t.value].name}`;
-    if (t.value === 'other') $('#server').focus();
+    q('#other-server').hidden = t.value !== 'other';
+    q('#create-submit').textContent = t.value === 'other' ? 'Create my account with this provider' : `Create my account with ${PROVIDERS[t.value].name}`;
+    if (t.value === 'other') q('#server').focus();
   }
 });
 
@@ -1842,9 +1998,10 @@ document.addEventListener('keydown', (e) => {
       return;
     }
   }
-  if (e.key === 'Escape' && !els.mail.open) {
+  if (e.key === 'Escape') {
+    const { layer } = currentTab();
     if (!els.fedcm.hidden) ACTIONS.fedcmClose();
-    else if (els.layer.classList.contains('layer-sheet') && !els.layer.hidden) ACTIONS.closeSheet();
+    else if (!layer.hidden && layer.classList.contains('layer-sheet')) ACTIONS.closeSheet();
   }
 });
 
@@ -1856,7 +2013,11 @@ function startScenario(id) {
   const scenario = SCENARIOS[id] ? id : 'new';
   S = freshState(scenario);
   delete PROVIDERS.custom;
-  closeMail();
+  // Every scenario starts with a single tab: Potluck.
+  tabs.splice(0).forEach((t) => t.view.remove());
+  activeTabId = null;
+  shownHost = '';
+  S.appTab = openTab('app').id;
   els.notif.hidden = true;
   els.toast.hidden = true;
   renderScenarioNav();

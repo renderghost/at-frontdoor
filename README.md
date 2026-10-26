@@ -18,7 +18,7 @@ Link straight to a scenario with a hash: `index.html#new`, `#returning`, `#forgo
 
 ### On GitHub Pages
 
-No workflow needed. In the repository, go to **Settings → Pages**, set **Source** to **Deploy from a branch**, pick `main` and `/ (root)`, and save. The site appears at `https://renderghost.github.io/at-sign-in-with-atmosphere/` a minute or two later. The `.nojekyll` file tells Pages to serve the files as they are.
+The prototype is published from `main` at [frontdoor.renderg.host](https://frontdoor.renderg.host), the domain set in `CNAME`. No workflow is needed: in the repository, **Settings → Pages** has **Source** set to **Deploy from a branch** with `main` and `/ (root)`. The `.nojekyll` file tells Pages to serve the files as they are.
 
 ## Scenarios
 
@@ -29,8 +29,10 @@ Pick one from the bar at the top. Each resets the prototype with a different per
 | 1 | New to the Atmosphere | Jo Park | Creating an account, hosted by Potluck itself or by any other provider |
 | 2 | Knows their details | Sam Okafor, Bluesky | Forgiving handle entry, provider sign-in, the redesigned consent screen, then a one-tap return visit |
 | 3 | Forgot their details | Rae Thompson, Blacksky | Recovering the handle and signing in with an emailed code |
-| 4 | Several accounts | Alex Moreno, three accounts | The browser account chooser (FedCM) and consent in a pop-up |
+| 4 | Several accounts | Alex Moreno, three accounts | The browser account chooser (FedCM), then consent in a new tab that closes once Potluck is connected |
 | 5 | Has one, doesn't know it | Priya Shah, Bluesky | Sign-up that finds the existing account before a duplicate is made |
+
+The simulated browser has working tabs. Anything that would open separately in real life opens in a new tab: the inbox, a link in an email, and the provider's consent step after the browser chooser. A tab opened for signing in closes itself once sign-in is done, and Potluck's tab picks up the session. You can switch between tabs and close them; Potluck's own tab stays open because it runs the demo.
 
 The **Notes** panel explains each screen as you go: who owns it, which design principles it applies, a quote from the Phase 1 research, and the open decisions it touches. It also lists the measurement events an adopting app could count.
 
@@ -41,8 +43,8 @@ The **Notes** panel explains each screen as you go: who owns it, which design pr
 | App | Potluck's sign-in page and signed-in home | `potluck.kitchen` in the address bar |
 | Front Door | Find the account, existing-account check, choose a provider, email recovery | A sheet inside Potluck. The address doesn't change, because there's no extra server in the way |
 | Browser | Account chooser | A panel drawn by the browser, under the address bar |
-| Provider | Sign-in, sign-up, codes, consent | The provider's own address, such as `bsky.social` or `blacksky.app` |
-| Inbox | Recovery and welcome emails | A Mail notification and window |
+| Provider | Sign-in, sign-up, codes, consent | The provider's own address, such as `bsky.social` or `blacksky.app`. In Potluck's tab after a redirect, or in a new tab when opened from the browser chooser or an email |
+| Inbox | Recovery and welcome emails | A Mail notification, then a webmail tab at `mail.example.com` |
 
 ## Design positions taken
 
@@ -77,6 +79,6 @@ All text is black. Backgrounds are white or whitesmoke. Colour carries meaning:
 
 - Provider names are real, but the logos are placeholder glyphs and the descriptions are placeholders.
 - Nothing typed leaves the page and any password works. Don't type a real one.
-- The browser account chooser assumes FedCM identity provider registration, which is still a Stage 1 proposal.
+- The browser account chooser assumes FedCM identity provider registration, which is still a Stage 1 proposal. FedCM shows the provider's consent step in a pop-up window; the prototype uses a tab so it's easier to read.
 - Per-permission reasons on the consent screen would need a new client-metadata field in the protocol.
 - The Atmosphere mark is a placeholder.
