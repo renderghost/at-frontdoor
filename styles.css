@@ -725,6 +725,10 @@ a {
   height: 24px;
 }
 
+.atmo-btn span {
+  white-space: nowrap;
+}
+
 /* ---------- Forms ---------- */
 
 .form {
@@ -1382,7 +1386,7 @@ a {
   text-align: center;
 }
 
-@container viewport (min-width: 820px) {
+@container viewport (min-width: 920px) {
   .pl-signin {
     grid-template-columns: 1.15fr 1fr;
     gap: 56px;
@@ -1392,7 +1396,9 @@ a {
   .pl-card {
     order: 0;
   }
+}
 
+@container viewport (min-width: 720px) {
   .pl-nav {
     display: flex;
   }
@@ -1579,25 +1585,38 @@ a {
 
 .am-who {
   display: flex;
-  padding: 8px;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 4px;
+  padding: 8px 8px 12px;
+  border-bottom: 1px solid var(--line);
 }
 
-.am-issuer {
+.am-who-text {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin: 0 8px 6px;
-  padding: 6px 10px;
-  border-radius: var(--r-sm);
-  background: var(--smoke);
-  font-size: 12.5px;
-  font-weight: 550;
+  line-height: 1.3;
 }
 
-.am-line {
+.am-eyebrow {
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 6px 8px 2px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.am-host {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12.5px;
 }
 
 .am-item {
@@ -2221,53 +2240,75 @@ a {
   min-width: 0;
 }
 
+/* The app and the Atmosphere account, stacked, with the link on the seam. */
 .two-accounts {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 12px;
-}
-
-.ta-item {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 4px;
-  width: 172px;
-  min-width: 0;
-  text-align: center;
+  width: 100%;
 }
 
-.ta-item > .tile,
-.ta-item > .avatar {
-  margin-bottom: 4px;
+.ta-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--paper);
+}
+
+.ta-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .ta-label {
-  max-width: 100%;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
 .ta-sub {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  min-width: 0;
   font-size: 12.5px;
 }
 
+.ta-sub > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Centred on the seam between the boxes, in line with their icons
+   (box border 1px + padding 14px + half of a 36px icon). */
 .ta-link {
+  position: absolute;
+  top: 50%;
+  left: 33px;
+  z-index: 1;
+  transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  margin-top: 13px;
-  flex: none;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  border: 1px solid var(--accent-500);
+  border: 1px solid var(--accent-600);
   background: var(--accent-100);
+  box-shadow: 0 0 0 3px var(--paper);
+}
+
+.ta-link .icon {
+  width: 14px;
+  height: 14px;
 }
 
 .acct-chip {
@@ -3071,8 +3112,12 @@ body[data-notes="closed"] .notes {
     flex-wrap: wrap;
   }
 
-  .ta-item {
-    width: 130px;
+  .banner-text {
+    flex-basis: calc(100% - 60px);
+  }
+
+  .banner .btn {
+    margin-left: 60px;
   }
 }
 

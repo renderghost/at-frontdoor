@@ -774,8 +774,15 @@ function accountMenu(p) {
     <details class="acct-menu">
       <summary aria-label="Account menu for @${esc(p.handle)}">${avatar(p, 'sm')}<span class="am-handle">@${esc(p.handle)}</span>${icon('chevron-down')}</summary>
       <div class="am-panel">
-        <div class="am-who">${accountRow(p, { meta: false })}</div>
-        <p class="am-issuer"><span class="am-line">${mark('mark-xs')}Atmosphere account</span><span class="am-line">${providerTile(p.provider, 'xs')}Hosted by ${esc(providerName(p))}</span></p>
+        <p class="am-eyebrow">${mark('mark-xs')}Your Atmosphere account</p>
+        <div class="am-who">
+          ${avatar(p)}
+          <span class="am-who-text">
+            <span class="acct-name">${esc(p.name)}</span>
+            <span class="acct-handle">@${esc(p.handle)}</span>
+            <span class="am-host">${providerTile(p.provider, 'xs')}<span>Hosted by ${esc(providerName(p))}</span></span>
+          </span>
+        </div>
         <button class="am-item" type="button" data-action="switchAccount">${icon('users-round')}Switch account</button>
         <button class="am-item" type="button" data-action="manageAccount">${icon('external-link')}Manage account on ${esc(pv.name)}</button>
         <button class="am-item" type="button" data-action="signOut">${icon('log-out')}Sign out</button>
@@ -1034,7 +1041,7 @@ function submitFind(form) {
   const p = profile(r.value);
   if (!p) {
     track('frontdoor.handle_not_found');
-    fieldMsg('handle', 'error', `We couldn’t find <strong>@${esc(r.value)}</strong>. Check the spelling, or <button type="button" class="link-btn" data-action="goForgot">find your Atmosphere account with your email</button>.`);
+    fieldMsg('handle', 'error', `We couldn’t find <strong>@${esc(r.value)}</strong>. Check the spelling, or <span class="nowrap"><button type="button" class="link-btn" data-action="goForgot">use your email instead</button>.</span>`);
     return;
   }
   if (r.fixes.length) track('frontdoor.handle_corrected', r.fixes.map((f) => f.type).join(', '));
@@ -1050,7 +1057,7 @@ function fdConfirm(p, fixNote = '') {
     <h2 id="sheet-title" class="sheet-title">Is this you?</h2>
     <div class="found-card">${accountRow(p)}</div>
     <div class="next-hop">
-      <p class="next-hop-title">Next, sign in with ${esc(who)}, your account’s provider</p>
+      <p class="next-hop-title">Next, sign in with ${esc(who)}</p>
       <ul class="hop-list">
         <li>${icon('arrow-right')}<span>You’ll go to <strong>${esc(host)}</strong>. ${esc(who)} hosts your Atmosphere account, so that’s where you sign in.</span></li>
         <li>${icon('shield-check')}<span>${esc(who)} will show what Potluck wants to do. You decide.</span></li>
@@ -1099,7 +1106,7 @@ function createForm() {
           </div>
         </div>
       </fieldset>
-      <button class="btn btn-primary btn-block" type="submit" id="create-submit">Create my Atmosphere account with Potluck</button>
+      <button class="btn btn-primary btn-block" type="submit" id="create-submit">Continue with Potluck</button>
     </form>`;
 }
 
@@ -1123,7 +1130,7 @@ function fdCreate() {
   } else {
     body = `
       <h2 id="sheet-title" class="sheet-title">Create your Atmosphere account</h2>
-      <div class="notice notice-info">${icon('info')}<p><strong>Used Bluesky or another Atmosphere app before?</strong> Then you already have an Atmosphere account and can <button type="button" class="link-btn" data-action="goFind">sign in with it</button>. Not sure? <button type="button" class="link-btn" data-action="goSearch">Search for yourself</button>.</p></div>
+      <div class="notice notice-info">${icon('info')}<p><strong>Used Bluesky or another Atmosphere app before?</strong> Then you already have an Atmosphere account and can <span class="nowrap"><button type="button" class="link-btn" data-action="goFind">sign in with it</button>.</span> Not sure? <span class="nowrap"><button type="button" class="link-btn" data-action="goSearch">Search for yourself</button>.</span></p></div>
       ${createForm()}`;
   }
   showSheet(sheet(body));
@@ -1380,9 +1387,9 @@ function handshake(p) {
 function twoAccounts(p) {
   return `
     <div class="two-accounts" aria-hidden="true">
-      <div class="ta-item">${appTile('lg')}<span class="ta-label">${APP.name}</span><span class="ta-sub">${icon('shield-check')}${APP.domain}</span></div>
+      <div class="ta-item">${appTile()}<span class="ta-text"><span class="ta-label">${APP.name}</span><span class="ta-sub">${icon('shield-check')}<span>${APP.domain}</span></span></span></div>
+      <div class="ta-item">${avatar(p)}<span class="ta-text"><span class="ta-label">@${breakable(p.handle)}</span><span class="ta-sub">${providerTile(p.provider, 'xs')}<span>Hosted by ${esc(providerName(p))}</span></span></span></div>
       <span class="ta-link">${icon('link-2')}</span>
-      <div class="ta-item">${avatar(p, 'lg')}<span class="ta-label">@${breakable(p.handle)}</span><span class="ta-sub">${mark('mark-xs')}Atmosphere account</span><span class="ta-sub">${providerTile(p.provider, 'xs')}Hosted by ${esc(providerName(p))}</span></div>
     </div>`;
 }
 
@@ -1965,7 +1972,7 @@ document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.name === 'provider' && t.closest('form[data-form="create"]')) {
     q('#other-server').hidden = t.value !== 'other';
-    q('#create-submit').textContent = t.value === 'other' ? 'Create my Atmosphere account with this provider' : `Create my Atmosphere account with ${PROVIDERS[t.value].name}`;
+    q('#create-submit').textContent = t.value === 'other' ? 'Continue with this provider' : `Continue with ${PROVIDERS[t.value].name}`;
     if (t.value === 'other') q('#server').focus();
   }
 });
