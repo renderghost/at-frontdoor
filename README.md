@@ -12,7 +12,7 @@ Open `index.html` in a browser. To serve it locally instead:
 python3 -m http.server 8000
 ```
 
-It loads Inter from Google Fonts and Lucide icons from unpkg. Offline, it falls back to the system font and shows no icons.
+It loads its fonts from Google Fonts (Inter, Fraunces, Newsreader and Comic Neue) and Lucide icons from unpkg. Offline, it falls back to system fonts and shows no icons.
 
 Link straight to a scenario with a hash: `index.html#new`, `#returning`, `#forgot`, `#multi` or `#hidden`.
 
@@ -62,7 +62,17 @@ These are starting positions to test, not conclusions. The numbers refer to the 
 - **One Atmosphere account (D1, D3).** The account is always an Atmosphere account, on every screen and in every email. Providers are named as its host ("hosted by Bluesky"). This goes further than the decision log's "issuer and network" leaning, where providers named the account, so it needs testing with operators such as Blacksky.
 - **After sign-in.** The network is explained once people are in, not at the door.
 
-## Colour
+## Look
+
+Three looks keep it clear whose screen you're on:
+
+- **Atmosphere** (Front Door, the browser and the providers): black text on white or whitesmoke, set in Inter. This is the design being prototyped.
+- **Potluck** (the made-up app's own pages): dark brown with yellow accents, with Fraunces for headings and Newsreader for text. The sign-in card, where the Atmosphere button sits, stays pale cream. The Atmosphere button inside Potluck keeps the Atmosphere look, because it should look the same in every app.
+- **The prototype's frame** (the bar and the notes): a blueprint notepad, in Comic Neue and blueprint blues on squared and ruled paper. Nothing inside the simulated browser uses it.
+
+The palettes are custom properties at the top of `styles.css`: `--pl-*` for Potluck and `--bp-*` for the frame.
+
+### Colour in the Atmosphere look
 
 All text is black. Backgrounds are white or whitesmoke. Colour carries meaning:
 
