@@ -4,7 +4,7 @@
    Three looks, so it's always clear whose screen you're on:
      Atmosphere  Front Door, the browser and the providers. All text is
                  black and backgrounds are white or whitesmoke.
-     Potluck     the made-up app: brown and yellow, with serif type (--pl-*)
+     Potluck     the made-up app: brown with yellow accents, serif type (--pl-*)
      Prototype   the bar and notes around the browser: a blueprint notepad
                  in Comic Neue (--bp-*)
 
@@ -82,7 +82,6 @@
   --shadow-3: 0 28px 70px rgb(0 0 0 / 0.24), 0 4px 14px rgb(0 0 0 / 0.1);
 
   /* Potluck, the made-up app */
-  --pl-paper: #fff8ea;
   --pl-card: #fffcf4;
   --pl-cream: #fbefd2;
   --pl-yellow: #f3be3a;
@@ -91,10 +90,14 @@
   --pl-brown: #5b3a22;
   --pl-ink: #2f1f14;
   --pl-ink-soft: #6a4b35;
-  --pl-line: rgb(91 58 34 / 0.16);
   --pl-line-strong: rgb(91 58 34 / 0.34);
-  --pl-shadow-1: 0 1px 2px rgb(91 58 34 / 0.08), 0 3px 10px rgb(91 58 34 / 0.07);
-  --pl-shadow-2: 0 12px 32px rgb(91 58 34 / 0.14), 0 2px 6px rgb(91 58 34 / 0.08);
+  --pl-bark: #3a2416;
+  --pl-bark-raised: #4b3020;
+  --pl-bark-line: rgb(255 236 200 / 0.18);
+  --pl-bark-line-strong: rgb(255 236 200 / 0.36);
+  --pl-on-bark: #fff4dc;
+  --pl-on-bark-soft: #e2c9a6;
+  --pl-shadow-bark: 0 1px 2px rgb(0 0 0 / 0.22), 0 6px 18px rgb(0 0 0 / 0.2);
   --pl-display: "Fraunces", Georgia, "Times New Roman", serif;
   --pl-text: "Newsreader", Georgia, "Times New Roman", serif;
 
@@ -1206,17 +1209,26 @@ a {
 /* ---------- Potluck (the app) ---------- */
 
 /* Potluck has its own look, brown and yellow with serif type, so its pages
-   never read as Atmosphere. These rules reach only Potluck's own pages, and
-   the Atmosphere button inside them keeps the Atmosphere look. */
+   never read as Atmosphere. Brown leads; the sign-in card, where the
+   Atmosphere button sits, stays pale. These rules reach only Potluck's own
+   pages, and the Atmosphere button inside them keeps the Atmosphere look. */
 
 .potluck {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--pl-paper);
-  color: var(--pl-ink);
+  background: var(--pl-bark);
+  color: var(--pl-on-bark);
   font-family: var(--pl-text);
   font-size: 16.5px;
+}
+
+.potluck :focus-visible {
+  outline-color: var(--pl-yellow);
+}
+
+.potluck .pl-card :focus-visible {
+  outline-color: var(--focus);
 }
 
 .potluck .atmo-btn {
@@ -1224,13 +1236,26 @@ a {
   font-family: var(--font);
 }
 
-.potluck .tile-app,
+/* Avatars and provider tiles have pale fills, so they keep dark ink. */
+.potluck .avatar,
+.potluck .tile {
+  color: var(--pl-ink);
+}
+
+.potluck .tile-app {
+  background: var(--pl-yellow);
+  border-color: var(--pl-yellow);
+}
+
+.potluck .tile-app .icon {
+  color: var(--pl-bark);
+}
+
 .tab-icon .tile-app {
   background: var(--pl-brown);
   border-color: var(--pl-brown);
 }
 
-.potluck .tile-app .icon,
 .tab-icon .tile-app .icon {
   color: var(--pl-yellow);
 }
@@ -1245,14 +1270,14 @@ a {
 }
 
 .potluck .btn-secondary {
-  background: var(--pl-card);
-  border-color: var(--pl-brown);
-  color: var(--pl-brown);
+  background: transparent;
+  border-color: var(--pl-on-bark-soft);
+  color: var(--pl-on-bark);
   font-family: var(--pl-display);
 }
 
 .potluck .btn-secondary:hover:not(:disabled) {
-  background: var(--pl-yellow-soft);
+  background: rgb(255 244 220 / 0.1);
 }
 
 .potluck .notice-info,
@@ -1273,16 +1298,15 @@ a {
   align-items: center;
   gap: 24px;
   padding: 12px 24px;
-  background: var(--pl-paper);
-  border-top: 4px solid var(--pl-yellow);
-  border-bottom: 1px solid var(--pl-line);
+  background: var(--pl-bark);
+  border-bottom: 1px solid var(--pl-bark-line);
 }
 
 .pl-logo {
   display: flex;
   align-items: center;
   gap: 9px;
-  color: var(--pl-brown);
+  color: var(--pl-on-bark);
   font-family: var(--pl-display);
   font-size: 24px;
   font-weight: 700;
@@ -1303,7 +1327,7 @@ a {
 
 .pl-nav a:hover {
   text-decoration: underline;
-  text-decoration-color: var(--pl-yellow-deep);
+  text-decoration-color: var(--pl-yellow);
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
 }
@@ -1320,7 +1344,7 @@ a {
 }
 
 .pl-kicker {
-  color: var(--pl-brown);
+  color: var(--pl-yellow);
   font-size: 14px;
   font-weight: 600;
   text-transform: uppercase;
@@ -1329,7 +1353,7 @@ a {
 
 .pl-display {
   margin: 12px 0 16px;
-  color: var(--pl-brown);
+  color: var(--pl-on-bark);
   font-family: var(--pl-display);
   font-size: clamp(38px, 6.6cqi, 64px);
   line-height: 1.02;
@@ -1340,7 +1364,7 @@ a {
 
 .pl-lede {
   max-width: 40ch;
-  color: var(--pl-ink-soft);
+  color: var(--pl-on-bark-soft);
   font-size: 19px;
   line-height: 1.45;
 }
@@ -1360,10 +1384,10 @@ a {
   align-items: center;
   gap: 14px;
   padding: 10px 14px 10px 10px;
-  border: 1px solid var(--pl-line);
+  border: 1px solid var(--pl-bark-line);
   border-radius: var(--r-md);
-  background: var(--pl-card);
-  box-shadow: var(--pl-shadow-1);
+  background: var(--pl-bark-raised);
+  box-shadow: var(--pl-shadow-bark);
 }
 
 .mini-recipe:nth-child(2) {
@@ -1383,7 +1407,7 @@ a {
 }
 
 .mini-recipe .by {
-  color: var(--pl-ink-soft);
+  color: var(--pl-on-bark-soft);
   font-size: 14px;
 }
 
@@ -1444,7 +1468,8 @@ a {
   border: 1px solid var(--pl-line-strong);
   border-radius: 24px;
   background: linear-gradient(var(--pl-yellow) 0 8px, var(--pl-card) 8px);
-  box-shadow: var(--pl-shadow-2);
+  box-shadow: var(--pl-shadow-bark);
+  color: var(--pl-ink);
 }
 
 .pl-card h2 {
@@ -1584,9 +1609,9 @@ a {
   align-items: flex-start;
   gap: 16px;
   padding: 20px 22px;
-  border: 1px solid var(--pl-yellow-deep);
+  border: 1px solid rgb(243 190 58 / 0.55);
   border-radius: var(--r-lg);
-  background: var(--pl-cream);
+  background: var(--pl-bark-raised);
   animation: rise 0.25s ease-out;
 }
 
@@ -1657,15 +1682,15 @@ a {
   width: 100%;
   height: 100%;
   padding: 12px 12px 14px;
-  border: 1px solid var(--pl-line);
+  border: 1px solid var(--pl-bark-line);
   border-radius: var(--r-md);
-  background: var(--pl-card);
+  background: var(--pl-bark-raised);
   text-align: left;
 }
 
 .recipe-btn:hover {
-  border-color: var(--pl-line-strong);
-  box-shadow: var(--pl-shadow-1);
+  border-color: var(--pl-bark-line-strong);
+  box-shadow: var(--pl-shadow-bark);
 }
 
 .recipe-btn .food {
@@ -1694,7 +1719,7 @@ a {
   align-items: center;
   gap: 6px;
   min-width: 0;
-  color: var(--pl-ink-soft);
+  color: var(--pl-on-bark-soft);
   font-size: 14px;
 }
 
@@ -1716,9 +1741,9 @@ a {
   align-items: center;
   gap: 8px;
   padding: 4px 10px 4px 4px;
-  border: 1px solid var(--pl-line-strong);
+  border: 1px solid var(--pl-bark-line-strong);
   border-radius: var(--r-pill);
-  background: var(--pl-card);
+  background: var(--pl-bark-raised);
   cursor: pointer;
   list-style: none;
   font-size: 15px;
@@ -1747,10 +1772,10 @@ a {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: var(--pl-card);
-  border: 1px solid var(--pl-line-strong);
+  background: var(--pl-bark-raised);
+  border: 1px solid var(--pl-bark-line-strong);
   border-radius: var(--r-md);
-  box-shadow: var(--pl-shadow-2);
+  box-shadow: var(--pl-shadow-bark);
 }
 
 .am-who {
@@ -1759,7 +1784,7 @@ a {
   gap: 10px;
   margin-bottom: 4px;
   padding: 8px 8px 12px;
-  border-bottom: 1px solid var(--pl-line);
+  border-bottom: 1px solid var(--pl-bark-line);
 }
 
 .am-who-text {
@@ -1779,6 +1804,11 @@ a {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+/* The one-colour Atmosphere mark, in light on Potluck's brown menu */
+.am-eyebrow .mark {
+  color: var(--pl-on-bark);
 }
 
 .am-host {
@@ -1802,7 +1832,7 @@ a {
 }
 
 .am-item:hover {
-  background: var(--pl-cream);
+  background: rgb(255 244 220 / 0.1);
 }
 
 /* ---------- Front Door sheet ---------- */
