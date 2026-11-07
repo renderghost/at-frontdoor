@@ -284,7 +284,7 @@ const STEPS = {
   },
   'pv.signup': {
     title: 'Create the account at the provider', owner: 'provider', journey: ['auth'], event: 'provider.signup_shown',
-    what: 'The chosen provider creates the Atmosphere account, whether that’s Potluck’s own hosting or anyone else. The page says it’s an Atmosphere account that this provider hosts. An email address, then a passkey or a password, side by side with neither picked for you. The email stays either way, because recovery codes go there. The confirmation email doesn’t block getting in.',
+    what: 'The chosen provider creates the Atmosphere account, whether that’s Potluck’s own hosting or anyone else. The page says it’s an Atmosphere account that this provider hosts. An email address, then a passkey or a password, side by side with neither picked for you. The email stays either way, because recovery codes go there. A passkey is for this provider only, so the note says it stays behind if the account moves. The confirmation email doesn’t block getting in.',
     principles: ['issuer', 'noDuplicates', 'standard'],
     quote: ['even if you lose two or 3% of users, if you scale up, that’s a lot.', 'Holke, Hypercerts'],
     open: 'Should the passkey be picked by default, or the choice stay neutral, as here? Where age checks and terms belong.',
@@ -331,9 +331,9 @@ const STEPS = {
   },
   'app.settings': {
     title: 'Account settings', owner: 'app', journey: ['settings'], event: 'app.settings_shown',
-    what: 'Potluck’s own settings, with a clear line between what Potluck owns and what it doesn’t. Sharing, switching, signing out and disconnecting are Potluck’s. Sign-in, security, moving and deleting the account belong to the provider that hosts it, so those rows hand off to the provider. Potluck never sees them, so it never shows whether there’s a passkey or a password.',
+    what: 'Potluck’s own settings, with a clear line between what Potluck owns and what it doesn’t. Sharing, switching, signing out and disconnecting are Potluck’s. Sign-in, security, moving and deleting the account belong to the provider that hosts it, so those rows hand off to the provider. Potluck never sees them, so it never shows whether there’s a passkey or a password. Moving keeps the account but not its passkeys, so the move row says so.',
     principles: ['issuer', 'handshake'],
-    open: 'D11: where managing, moving and deleting the account live, and how in-app deletion meets App Store and EU rules. Is there a standard way to link to one section of the provider’s settings, and back?',
+    open: 'D11: where managing, moving and deleting the account live, and how in-app deletion meets App Store and EU rules. Is there a standard way to link to one section of the provider’s settings, and back? Is “you’ll set up new ones there” clear enough about passkeys when moving?',
   },
   'pv.security': {
     title: 'Sign-in and security', owner: 'provider', journey: ['manage'], event: 'provider.security_shown',
@@ -977,7 +977,7 @@ function appSettings() {
             <span class="set-managed">${providerTile(p.provider, 'xs')}<span>Managed by ${pv}</span></span>
           </div>
           <ul class="set-rows">
-            ${settingRow('Move to another provider', 'Take your handle, posts and followers to another provider. It’s still the same Atmosphere account.', handOff(p, 'account'))}
+            ${settingRow('Move to another provider', 'Take your handle, posts and followers to another provider. It’s still the same Atmosphere account. Passkeys stay behind, so you’ll set up new ones there.', handOff(p, 'account'))}
             ${settingRow('Delete your Atmosphere account', `This deletes it everywhere, in every Atmosphere app, not only ${APP.name}.`, handOff(p, 'account'))}
           </ul>
         </section>
@@ -1038,7 +1038,7 @@ function pvSecurity(p, section, { quiet = false } = {}) {
     <section class="sec-block" aria-labelledby="sec-account-title">
       <h2 class="sec-heading" id="sec-account-title">Your account</h2>
       <ul class="sec-list">
-        ${securityRow('account', 'Move to another provider', 'Take your handle, posts and followers with you.', notYet('Move'))}
+        ${securityRow('account', 'Move to another provider', 'Take your handle, posts and followers with you. Your passkeys stay here, so you’ll set up new ones with your new provider.', notYet('Move'))}
         ${securityRow('delete', 'Delete your Atmosphere account', 'Deletes it in every Atmosphere app.', notYet('Delete'))}
       </ul>
     </section>
@@ -1949,7 +1949,7 @@ function pvSignup(pid) {
         </div>
         <div id="method-msg" class="field-msg" aria-live="polite"></div>
       </fieldset>
-      <p class="hint" id="passkey-note" hidden>Your browser saves the passkey on this device. It works with ${esc(pv.name)} in every Atmosphere app.</p>
+      <p class="hint" id="passkey-note" hidden>Your browser saves the passkey on this device. It works with ${esc(pv.name)} in every Atmosphere app. If you ever move your account to another provider, you’ll set up a new passkey there.</p>
       <div class="field" id="password-field" hidden>
         <label for="new-password">Password</label>
         ${passwordInput('new-password', 'new-password')}
