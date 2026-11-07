@@ -81,9 +81,9 @@ const SCENARIOS = {
     tryThis: [
       'Press <strong>Create an Atmosphere account</strong> (or <strong>Continue with Atmosphere</strong>, then “New here?”).',
       'Keep Potluck as the provider, or pick another one.',
-      'Use the browser’s saved email. Any password of 8 or more characters works.',
+      'Use the browser’s saved email, then choose a passkey or a password. Any password of 8 or more characters works.',
     ],
-    data: [['Email', 'jo.park@example.com'], ['Password', 'anything, 8+ characters']],
+    data: [['Email', 'jo.park@example.com'], ['Sign in with', 'a passkey, or any 8+ character password']],
   },
   returning: {
     n: 2,
@@ -92,9 +92,10 @@ const SCENARIOS = {
     browserAccounts: [],
     situation: 'Sam uses Bluesky every day, so Sam already has an Atmosphere account, hosted by Bluesky. Sam knows the handle and password, but this is a new laptop, so the browser doesn’t know Sam yet.',
     tryThis: [
-      'Press <strong>Continue with Atmosphere</strong>.',
-      'Type <code>sam</code>, <code>@sam.bsky.social</code>, <code>sam@bsky.social</code> or <code>sam.bsky.app</code> and see what Front Door makes of it.',
-      'Afterwards, sign out and sign in again. The browser now offers Sam’s Atmosphere account.',
+      'Press <strong>Continue with Atmosphere</strong>. Type <code>sam</code>, <code>@sam.bsky.social</code>, <code>sam@bsky.social</code> or <code>sam.bsky.app</code> and see what Front Door makes of it.',
+      'Sign in with any password. Bluesky then offers a passkey for next time.',
+      'On Bluesky’s sign-in page, try a variation in these notes: a passkey saved on this device, one only on a lost phone, verification codes, or passkey only.',
+      'Afterwards, open <strong>Account settings</strong> from the account menu, or sign out and sign in again: the browser now offers Sam’s Atmosphere account.',
     ],
     data: [['Handle', 'sam.bsky.social'], ['Password', 'anything']],
   },
@@ -107,7 +108,8 @@ const SCENARIOS = {
     tryThis: [
       'Press <strong>Continue with Atmosphere</strong>, then <strong>Forgot your handle?</strong>',
       'Use Rae’s email and pick Blacksky, or “Not sure”.',
-      'Open the email when it arrives (top right). The inbox opens in a new tab, and the link in the email opens Blacksky in another. That tab closes once Rae is signed in.',
+      'Open the email when it arrives (top right). The inbox opens in a new tab. The email has Rae’s handle and a code, but no link.',
+      'Go back to Potluck’s tab, press <strong>I’ve got the email</strong> and type Rae’s handle. Blacksky asks for the code, then offers a passkey for next time.',
     ],
     data: [['Email', 'rae.thompson@example.com'], ['Provider', 'Blacksky'], ['Code', 'shown in the email']],
   },
@@ -120,7 +122,7 @@ const SCENARIOS = {
     tryThis: [
       'Press <strong>Continue with Atmosphere</strong>. The browser lists Alex’s Atmosphere accounts.',
       'Pick the cooking account, Alex Cooks. Its provider, Eurosky, asks for consent in a new tab, which closes once Potluck is connected.',
-      'Try the account menu afterwards to switch accounts.',
+      'Try the account menu afterwards: switch accounts, or open Account settings to see what Potluck manages and what Eurosky does.',
     ],
     data: [['Accounts', '3, remembered by the browser'], ['Password', 'not needed']],
   },
@@ -168,7 +170,8 @@ const JOURNEY = [
   { id: 'auth', label: 'Sign in or create the account', owner: 'provider' },
   { id: 'consent', label: 'Consent', owner: 'provider' },
   { id: 'back', label: 'Back in the app', owner: 'app' },
-  { id: 'manage', label: 'Manage the account (later)', owner: 'provider' },
+  { id: 'settings', label: 'Account settings in the app', owner: 'app' },
+  { id: 'manage', label: 'Sign-in and security at the provider', owner: 'provider' },
 ];
 
 // Notes for each screen: who owns it, what it shows, and what's still open.
@@ -229,38 +232,68 @@ const STEPS = {
     evidence: 'Some of MaEarth’s one-time codes never reached Hotmail users. A couple of dozen people contacted support, and more probably gave up (Erika, MaEarth).',
     open: 'How long to wait before suggesting another provider.',
   },
+  'fd.recover': {
+    title: 'Back to the tab you started in', owner: 'frontdoor', journey: ['find'], event: 'frontdoor.recovery_continued',
+    what: 'The email has no link, so the person comes back to the tab where they started and types the handle from the email. Front Door finds the provider as usual, and the provider asks for the code, because it knows it just sent one. Typing the handle once also helps it stick.',
+    principles: ['noDependency', 'forgive'],
+    open: 'Two things to carry from the email, the handle and the code. Is that too much on a phone?',
+  },
   'mail.open': {
     title: 'Email from the provider', owner: 'inbox', journey: [], event: 'inbox.email_opened',
-    what: 'The email opens in the person’s own inbox, in its own tab. It comes from the provider that holds the account, not from Potluck or Atmosphere. A recovery email carries the forgotten handle and a one-time code, and its link opens the provider in a new tab. A welcome email repeats the handle so it’s easy to find later.',
+    what: 'The email opens in the person’s own inbox, in its own tab. It comes from the provider that holds the account, not from Potluck or Atmosphere. A recovery email carries the forgotten handle and a one-time code, and no link: people go back to the tab where they started. A welcome email repeats the handle so it’s easy to find later.',
     principles: ['issuer', 'handshake'],
     open: 'Should every provider email say which app asked for it?',
   },
   'pv.signin': {
-    title: 'Provider sign-in', owner: 'provider', journey: ['auth'], event: 'provider.signin_shown',
-    what: 'The provider’s own page, on its own address. The heading names the Atmosphere account and the copy names the provider as its host. Front Door passed the handle through, so only the password is left, and the footer says Potluck never sees it.',
-    principles: ['handshake', 'issuer'],
+    title: 'Provider sign-in', owner: 'provider', journey: ['auth'], event: 'provider.signin_shown', vary: 'signin',
+    what: 'The provider’s own page, on its own address. The heading names the Atmosphere account and the copy names the provider as its host. Front Door passed the handle through, so only the password is left, and the footer says Potluck never sees it. “Use a passkey” is there for everyone. When this device holds a passkey for the account, the browser offers it in the password field, so the page itself never reveals whether the account has one.',
+    principles: ['handshake', 'issuer', 'standard'],
     quote: ['especially because now it redirects to something that looks like it’s owned by Bluesky.', 'Pouria, Semble'],
-    open: 'Providers own this page. This layout is what we’d propose to the reference PDS and Bluesky’s entryway (D8).',
+    open: 'Providers own this page. This layout is what we’d propose to the reference PDS and Bluesky’s entryway (D8). A discoverable passkey could make typing the handle unnecessary, but Front Door still needs the handle to know which provider to send people to.',
+  },
+  'pv.totp': {
+    title: 'Verification code', owner: 'provider', journey: ['auth'], event: 'provider.code_step_shown',
+    what: 'For accounts with verification codes switched on, the provider asks for a code from an authenticator app after the password. It’s the universal second step and it helps, but a phishing page can still relay a password and a code while they’re fresh. A passkey can’t be relayed, so this page offers one where this device has it.',
+    principles: ['standard'],
+    open: 'Authenticator apps only, or text messages too? Text messages are the weakest source, so the prototype leaves them out.',
+  },
+  'browser.passkey': {
+    title: 'Sign in with a passkey', owner: 'browser', journey: ['auth'], event: 'browser.passkey_prompt_shown',
+    what: 'The browser, not the provider’s page, asks for the passkey, and it only offers passkeys saved for this exact site. That’s why a passkey can’t be phished: a lookalike page gets nothing to relay. The device’s fingerprint, face or screen lock unlocks it. With no passkey on this device, the browser offers one on a phone or tablet nearby.',
+    principles: ['standard', 'handshake'],
+    open: 'Wording: “passkey”, or “fingerprint, face or screen lock”? This may be the next “handle or username” debate.',
   },
   'pv.code': {
     title: 'Sign in with an emailed code', owner: 'provider', journey: ['auth'], event: 'provider.code_shown',
-    what: 'The code from the email signs the person in. Opened from the email’s link, this page is in a new tab with the code already filled in. Otherwise the browser offers to fill it in from Mail, as phones already do.',
-    principles: ['forgive'],
+    what: 'The code from the email signs the person in, typed on the provider’s own page in the tab where they started. The browser offers to fill it in from Mail, as phones already do. Codes are for recovery and new devices only, and never come as a link, so a lookalike email has nothing to click.',
+    principles: ['forgive', 'standard'],
     quote: ['ideally, there would be still a way to just put in your email and then log in with that.', 'Holke, Hypercerts'],
-    open: 'Should providers offer code sign-in all the time, not only for recovery?',
+    open: 'Should a code get into an account with “Passkey only” switched on, or should that wait, or need a saved recovery code?',
   },
   'pv.newPassword': {
-    title: 'New password, optional', owner: 'provider', journey: ['auth'], event: 'provider.password_offered',
-    what: 'The person is already signed in. A new password is offered, not forced, so getting into Potluck isn’t held up.',
-    principles: ['forgive'],
-    open: 'Offer a passkey here instead of a password (Eli, Streamplace).',
+    title: 'How to sign in next time', owner: 'provider', journey: ['auth'], event: 'provider.signin_method_offered',
+    what: 'The person is already signed in with the emailed code. A passkey is offered first, as Eli at Streamplace suggested, and a new password is still there. Neither is forced, so getting into Potluck isn’t held up. A passkey left on a lost phone can be removed here.',
+    principles: ['forgive', 'standard'],
+    open: 'Should a lost passkey be removed here, or only in Sign-in and security?',
+  },
+  'pv.passkeyOffer': {
+    title: 'Offer a passkey', owner: 'provider', journey: ['auth'], event: 'provider.passkey_offered',
+    what: 'After a password sign-in, the provider offers a passkey for next time, once, with a clear “Not now”, so it doesn’t stand between people and Potluck. Next time, the browser offers the passkey on the sign-in page.',
+    principles: ['standard', 'forgive'],
+    open: 'How often should the offer come back after “Not now”?',
   },
   'pv.signup': {
     title: 'Create the account at the provider', owner: 'provider', journey: ['auth'], event: 'provider.signup_shown',
-    what: 'The chosen provider creates the Atmosphere account, whether that’s Potluck’s own hosting or anyone else. The page says it’s an Atmosphere account that this provider hosts. Two fields. The confirmation email doesn’t block getting in.',
-    principles: ['issuer', 'noDuplicates'],
+    what: 'The chosen provider creates the Atmosphere account, whether that’s Potluck’s own hosting or anyone else. The page says it’s an Atmosphere account that this provider hosts. An email address, then a passkey or a password, side by side with neither picked for you. The email stays either way, because recovery codes go there. A passkey is for this provider only, so the note says it stays behind if the account moves. The confirmation email doesn’t block getting in.',
+    principles: ['issuer', 'noDuplicates', 'standard'],
     quote: ['even if you lose two or 3% of users, if you scale up, that’s a lot.', 'Holke, Hypercerts'],
-    open: 'Passkeys instead of passwords. Where age checks and terms belong.',
+    open: 'Should the passkey be picked by default, or the choice stay neutral, as here? Where age checks and terms belong.',
+  },
+  'browser.passkeyCreate': {
+    title: 'Create a passkey', owner: 'browser', journey: ['auth'], event: 'browser.passkey_create_shown',
+    what: 'The browser makes the passkey and saves it on this device, in its password manager. The provider never sees a fingerprint or a face, only a key that works for its own site.',
+    principles: ['standard'],
+    open: 'What happens on a device that can’t make passkeys? The password should look like a normal choice, not a fallback.',
   },
   'pv.handle': {
     title: 'Choose a handle', owner: 'provider', journey: ['auth'], event: 'provider.handle_shown',
@@ -291,10 +324,22 @@ const STEPS = {
   },
   'app.home': {
     title: 'Signed in', owner: 'app', journey: ['back'], event: 'app.home_shown',
-    what: 'Back in Potluck. Now, not at the door, is when the idea of one Atmosphere account gets explained. Account settings link out to the provider that hosts it.',
+    what: 'Back in Potluck. Now, not at the door, is when the idea of one Atmosphere account gets explained. The account menu leads to Potluck’s own account settings.',
     principles: ['recognition', 'issuer', 'measure'],
     quote: ['It is only after you get through the account creation when you’re walking through some of the onboarding steps that we have that we surface that there is such a thing as the atmosphere.', 'Rishi, Blacksky'],
-    open: 'D11: where managing, moving and deleting the account live, and how in-app deletion meets App Store and EU rules.',
+    open: 'D2: when the welcome can stop explaining the Atmosphere through Bluesky.',
+  },
+  'app.settings': {
+    title: 'Account settings', owner: 'app', journey: ['settings'], event: 'app.settings_shown',
+    what: 'Potluck’s own settings, with a clear line between what Potluck owns and what it doesn’t. Sharing, switching, signing out and disconnecting are Potluck’s. Sign-in, security, moving and deleting the account belong to the provider that hosts it, so those rows hand off to the provider. Potluck never sees them, so it never shows whether there’s a passkey or a password. Moving keeps the account but not its passkeys, so the move row says so.',
+    principles: ['issuer', 'handshake'],
+    open: 'D11: where managing, moving and deleting the account live, and how in-app deletion meets App Store and EU rules. Is there a standard way to link to one section of the provider’s settings, and back? Is “you’ll set up new ones there” clear enough about passkeys when moving?',
+  },
+  'pv.security': {
+    title: 'Sign-in and security', owner: 'provider', journey: ['manage'], event: 'provider.security_shown',
+    what: 'The provider’s own settings page, opened in a new tab from Potluck. Passkeys, the password, verification codes and the recovery email live here, and apply in every Atmosphere app. “Passkey only” switches off the password and codes, so a phishing page has nothing to ask for. “Back to Potluck” closes the tab.',
+    principles: ['issuer', 'standard'],
+    open: 'Providers own this page. Which sections can an app link to directly? With “Passkey only” on, an emailed code would undo it, so what should recovery look like: a waiting period, or saved recovery codes?',
   },
 };
 
@@ -319,10 +364,20 @@ function freshState(id) {
     pending: null, // { profile, isNew, via } while a sign-in is in progress
     draft: {},
     code: null,
+    codeFor: null,
+    totp: null, // the code an authenticator app would show
     declinedPost: false,
+    passkeys: new Map(), // handle -> passkeys held at the provider: [{ device, here }]
+    codesOn: new Set(), // handles with verification codes switched on
+    passkeyOnly: new Set(), // handles that sign in with a passkey only
+    offered: new Set(), // handles offered a passkey after a password, this run
+    passwordless: new Set(), // handles made with a passkey and no password
+    pk: null, // the browser's passkey prompt in progress
+    promptReturn: null, // the screen to go back to when a browser prompt closes
     appTab: null, // Potluck's tab, where the demo starts
     authTab: null, // a provider tab opened for signing in
     mailTab: null, // the person's inbox
+    manageTab: null, // the provider's account settings, opened from Potluck
     mailOpen: null, // the email shown in the inbox
     flash: null,
     step: null,
@@ -420,6 +475,14 @@ function maskEmail(email) {
 const breakable = (text) => esc(text).replace(/\./g, '.<wbr>');
 
 const formatCode = (code) => `${code.slice(0, 3)} ${code.slice(3)}`;
+
+// Passkeys belong to the provider's site and live on a device.
+const thisDevice = () => (window.matchMedia('(max-width: 600px)').matches ? 'This phone' : 'This laptop');
+const passkeysFor = (handle) => S.passkeys.get(handle) || [];
+const passkeyHere = (handle) => passkeysFor(handle).some((k) => k.here);
+function savePasskey(handle) {
+  S.passkeys.set(handle, [...passkeysFor(handle).filter((k) => !k.here), { device: thisDevice(), here: true }]);
+}
 const newCode = () => String(Math.floor(100000 + Math.random() * 900000));
 
 function announce(text) {
@@ -518,6 +581,12 @@ function activateTab(id) {
     t.view.hidden = t.id !== id;
   });
   renderChrome();
+  // The notes follow the tab on show
+  const tab = currentTab();
+  if (S && tab.step && tab.step !== S.step) {
+    S.step = tab.step;
+    renderNotes();
+  }
 }
 
 function closeTab(id, { to } = {}) {
@@ -527,6 +596,7 @@ function closeTab(id, { to } = {}) {
   tab.view.remove();
   if (S.authTab === id) S.authTab = null;
   if (S.mailTab === id) S.mailTab = null;
+  if (S.manageTab === id) S.manageTab = null;
   if (activeTabId === id) activateTab(tabById(to) ? to : (tabs[index - 1] || tabs[0]).id);
   else renderChrome();
 }
@@ -635,6 +705,8 @@ function showSheet(markup) {
 function enter(stepId) {
   const step = STEPS[stepId];
   S.step = stepId;
+  const tab = currentTab();
+  if (tab) tab.step = stepId;
   if (S.flowStart) S.screens += 1;
   step.journey.forEach((j) => S.visited.add(j));
   if (step.event) track(step.event);
@@ -675,6 +747,7 @@ function renderNotes() {
     <h2 class="ns-title">${step.title}</h2>
     <p class="owner"><span class="owner-dot owner-${step.owner}" aria-hidden="true"></span>Owned by <strong>${OWNERS[step.owner]}</strong></p>
     <p>${step.what}</p>
+    ${step.vary ? varyMarkup(step.vary) : ''}
     ${step.principles.length ? `<p class="ns-sub">Principles</p><ul class="chips">${step.principles.map((k) => `<li>${PRINCIPLES[k]}</li>`).join('')}</ul>` : ''}
     ${step.quote ? `<figure class="quote"><blockquote>“${step.quote[0]}”</blockquote><figcaption>${step.quote[1]}</figcaption></figure>` : ''}
     ${step.evidence ? `<p class="evidence">${step.evidence}</p>` : ''}
@@ -688,6 +761,24 @@ function renderNotes() {
       return `<li class="${current ? 'is-current' : ''}${seen ? ' is-seen' : ''}"${current ? ' aria-current="step"' : ''}><span class="owner-dot owner-${j.owner}" aria-hidden="true"></span><span class="j-label">${j.label}</span><span class="j-owner">${OWNERS[j.owner]}</span></li>`;
     }).join('')}</ol>`;
   paintIcons();
+}
+
+// Variations a presenter can switch on the current screen. They change the
+// simulated account and device, not the design.
+function varyMarkup(kind) {
+  const p = S.pending?.profile;
+  if (kind !== 'signin' || !p) return '';
+  const keys = passkeysFor(p.handle);
+  const state = !keys.length ? 'none' : keys.some((k) => k.here) ? 'here' : 'away';
+  const opt = (value, label) => `<label class="vary-opt"><input type="radio" name="vary-passkey" value="${value}"${state === value ? ' checked' : ''}><span>${label}</span></label>`;
+  return `
+    <div class="vary" role="group" aria-labelledby="vary-title">
+      <p class="ns-sub" id="vary-title">Try a variation</p>
+      <p class="vary-label">A passkey for @${esc(p.handle)}</p>
+      ${opt('none', 'None yet')}${opt('here', 'Saved on this device')}${opt('away', 'Only on a lost phone')}
+      <label class="vary-opt vary-check"><input type="checkbox" data-vary="codes"${S.codesOn.has(p.handle) ? ' checked' : ''}><span>Verification codes switched on</span></label>
+      <label class="vary-opt"><input type="checkbox" data-vary="only"${S.passkeyOnly.has(p.handle) ? ' checked' : ''}><span>Passkey only switched on</span></label>
+    </div>`;
 }
 
 function renderEvents() {
@@ -732,6 +823,7 @@ function appSignin({ quiet = false } = {}) {
   const flashMarkup = {
     cancelled: `<div class="notice notice-info">${icon('info')}<p>You didn’t connect your Atmosphere account, so you’re not signed in. Try again whenever you like.</p></div>`,
     signedOut: `<div class="notice notice-ok">${icon('circle-check')}<p>You’ve signed out. Next time, your browser can offer your Atmosphere account.</p></div>`,
+    disconnected: `<div class="notice notice-ok">${icon('circle-check')}<p>${APP.name} is disconnected from your Atmosphere account, and you’re signed out. Your recipes are still saved in your account. Next time, your provider will ask you to connect ${APP.name} again.</p></div>`,
   }[flash] || '';
 
   showPage(`
@@ -783,6 +875,7 @@ function accountMenu(p) {
             <span class="am-host">${providerTile(p.provider, 'xs')}<span>Hosted by ${esc(providerName(p))}</span></span>
           </span>
         </div>
+        <button class="am-item" type="button" data-action="openSettings">${icon('settings')}Account settings</button>
         <button class="am-item" type="button" data-action="switchAccount">${icon('users-round')}Switch account</button>
         <button class="am-item" type="button" data-action="manageAccount">${icon('external-link')}Manage account on ${esc(pv.name)}</button>
         <button class="am-item" type="button" data-action="signOut">${icon('log-out')}Sign out</button>
@@ -821,7 +914,7 @@ function appHome({ isNew = false } = {}) {
           <span class="banner-mark">${mark()}</span>
           <div class="banner-text">
             ${welcomeCopy(p, isNew)}
-            ${S.declinedPost ? `<p class="banner-note">${icon('info')}Sharing recipes to your followers is off. You can switch it on in Settings at any time.</p>` : ''}
+            ${S.declinedPost ? `<p class="banner-note">${icon('info')}<span>Sharing recipes to your followers is off. You can switch it on in <button type="button" class="link-btn" data-action="openSettings">Account settings</button> at any time.</span></p>` : ''}
           </div>
           <button class="btn btn-secondary btn-sm" type="button" data-action="dismissBanner">Got it</button>
         </section>
@@ -832,9 +925,246 @@ function appHome({ isNew = false } = {}) {
   enter('app.home');
 }
 
+function settingRow(title, text, control) {
+  return `<li class="set-row"><span class="set-text"><strong>${title}</strong><span>${text}</span></span>${control}</li>`;
+}
+
+// What the provider owns: each row hands off to the provider's own page.
+function handOff(p, section) {
+  return `<button class="btn btn-secondary btn-sm set-out" type="button" data-action="providerSettings" data-section="${section}">${icon('external-link')}<span>At ${esc(providerName(p))}</span></button>`;
+}
+
+function appSettings() {
+  goToAppTab();
+  const p = S.signedIn;
+  const pv = esc(providerName(p));
+  showPage(`
+    <div class="potluck">
+      ${potluckHeader(p)}
+      <main class="pl-settings">
+        <h1 class="pl-page-title">Account settings</h1>
+        <section class="set-card" aria-labelledby="set-account">
+          <h2 id="set-account" class="set-heading">Your Atmosphere account</h2>
+          <div class="set-who">${avatar(p, 'md')}<span class="set-who-text"><span class="set-name">${esc(p.name)}</span><span class="set-handle">@${esc(p.handle)}</span><span class="set-host">${providerTile(p.provider, 'xs')}<span>Hosted by ${pv}</span></span></span></div>
+          <p class="set-note">You sign in to ${APP.name} with this account. It also works in Bluesky and every other Atmosphere app.</p>
+        </section>
+        <section class="set-card" aria-labelledby="set-app">
+          <h2 id="set-app" class="set-heading">${APP.name}</h2>
+          <ul class="set-rows">
+            ${settingRow('Share recipes to your followers', `When you press Share, ${APP.name} posts the recipe to your Atmosphere account, so people who follow you on Bluesky and other apps can see it.`, `<label class="switch"><input type="checkbox" data-setting="share"${S.declinedPost ? '' : ' checked'}><span class="switch-ui" aria-hidden="true"></span><span class="sr-only">Share recipes to your followers</span></label>`)}
+            ${settingRow('Switch account', `Use another Atmosphere account with ${APP.name}.`, '<button class="btn btn-secondary btn-sm" type="button" data-action="switchAccount">Switch</button>')}
+            ${settingRow('Sign out', `Sign out of ${APP.name} on this device.`, '<button class="btn btn-secondary btn-sm" type="button" data-action="signOut">Sign out</button>')}
+            ${settingRow(`Disconnect ${APP.name}`, `${APP.name} stops using your Atmosphere account and signs you out. Recipes you saved stay in your account.`, '<button class="btn btn-secondary btn-sm" type="button" data-action="disconnectApp">Disconnect</button>')}
+            ${settingRow(`Delete your ${APP.name} data`, `Deletes what ${APP.name} keeps about you, such as your preferences. Your Atmosphere account stays with ${pv}.`, '<button class="btn btn-secondary btn-sm" type="button" data-action="noop">Delete</button>')}
+          </ul>
+        </section>
+        <section class="set-card set-card-provider" aria-labelledby="set-security">
+          <div class="set-provider-head">
+            <h2 id="set-security" class="set-heading">Sign-in and security</h2>
+            <span class="set-managed">${providerTile(p.provider, 'xs')}<span>Managed by ${pv}</span></span>
+          </div>
+          <p class="set-note">${pv} hosts your Atmosphere account, so these settings live there and apply in every Atmosphere app. ${APP.name} can’t see or change them.</p>
+          <ul class="set-rows">
+            ${settingRow('Passkeys', 'Sign in with your fingerprint, face or screen lock instead of a password.', handOff(p, 'passkeys'))}
+            ${settingRow('Password', 'Change the password for your Atmosphere account.', handOff(p, 'password'))}
+            ${settingRow('Verification codes', 'Ask for a code from an authenticator app after your password.', handOff(p, 'codes'))}
+            ${settingRow('Recovery email', `Where ${pv} sends a code if you can’t sign in.`, handOff(p, 'recovery'))}
+          </ul>
+        </section>
+        <section class="set-card set-card-provider" aria-labelledby="set-move">
+          <div class="set-provider-head">
+            <h2 id="set-move" class="set-heading">Move or delete your account</h2>
+            <span class="set-managed">${providerTile(p.provider, 'xs')}<span>Managed by ${pv}</span></span>
+          </div>
+          <ul class="set-rows">
+            ${settingRow('Move to another provider', 'Take your handle, posts and followers to another provider. It’s still the same Atmosphere account. Passkeys stay behind, so you’ll set up new ones there.', handOff(p, 'account'))}
+            ${settingRow('Delete your Atmosphere account', `This deletes it everywhere, in every Atmosphere app, not only ${APP.name}.`, handOff(p, 'account'))}
+          </ul>
+        </section>
+      </main>
+    </div>`, { host: APP.domain, path: '/settings', title: `Account settings · ${APP.name}`, favicon: appTile('xs') });
+  enter('app.settings');
+}
+
+// The provider's own page, in its own tab, as a link out of Potluck would open.
+function openProviderSettings(section) {
+  const p = S.signedIn;
+  track('app.provider_settings_opened', `${providerName(p)}${section ? `, ${section}` : ''}`);
+  if (S.manageTab && tabById(S.manageTab)) activateTab(S.manageTab);
+  else S.manageTab = openTab('manage').id;
+  pvSecurity(p, section);
+}
+
+function securityRow(id, title, text, control, status = '') {
+  return `<li class="sec-row" id="sec-${id}"><span class="sec-text"><strong>${title}${status}</strong><span>${text}</span></span>${control}</li>`;
+}
+
+const secStatus = (label, on = false) => ` <span class="sec-status${on ? ' is-on' : ''}">${label}</span>`;
+
+function pvSecurity(p, section, { quiet = false } = {}) {
+  const pv = esc(providerName(p));
+  const h = p.handle;
+  const codesOn = S.codesOn.has(h);
+  const only = S.passkeyOnly.has(h);
+  const keys = passkeysFor(h);
+  const hasPassword = !S.passwordless.has(h);
+  const notYet = (label) => `<button class="btn btn-secondary btn-sm" type="button" data-action="notInPrototype">${label}</button>`;
+  const btn = (action, label) => `<button class="btn btn-secondary btn-sm" type="button" data-action="${action}">${label}</button>`;
+  const keyList = keys.length
+    ? `<ul class="pk-list">${keys.map((k, i) => `<li>${icon(/phone/i.test(k.device) ? 'smartphone' : 'laptop')}<span class="pk-list-text"><strong>${esc(k.device)}</strong><span>${k.here ? 'On this device' : 'On another device'}</span></span><button class="link-btn" type="button" data-action="removePasskey" data-index="${i}">Remove</button></li>`).join('')}</ul>`
+    : '';
+  const offNote = 'Switched off while passkey only is on.';
+  showProviderPage(p, '/account/security', 'Sign-in and security', `
+    <div class="acct-chip">${accountRow(p, { meta: false })}</div>
+    <h1 class="pv-title">Sign-in and security</h1>
+    <p class="pv-lede">${pv} hosts your Atmosphere account. These settings apply in every Atmosphere app you use.</p>
+    <section class="sec-block" aria-labelledby="sec-ways">
+      <h2 class="sec-heading" id="sec-ways">Ways to sign in</h2>
+      <ul class="sec-list">
+        <li class="sec-row sec-row-stack" id="sec-passkeys">
+          <span class="sec-text"><strong>Passkeys${secStatus(keys.length ? String(keys.length) : 'None', keys.length > 0)}</strong><span>Sign in with your fingerprint, face or screen lock instead of a password. A passkey only works on ${esc(hostFor(p))}, so it can’t be phished.</span></span>
+          ${btn('securityAddPasskey', 'Add a passkey')}
+          ${keyList}
+        </li>
+        ${securityRow('password', 'Password', only ? offNote : hasPassword ? 'Use it with your handle in every Atmosphere app.' : 'This account was made with a passkey and has no password.', only ? '' : notYet(hasPassword ? 'Change' : 'Set a password'), only ? secStatus('Off') : hasPassword ? secStatus('Set', true) : secStatus('Not set'))}
+        ${securityRow('codes', 'Verification codes', only ? offNote : 'After your password, ask for a code from an authenticator app.', only || !hasPassword ? '' : btn('toggleCodes', codesOn ? 'Turn off' : 'Turn on'), codesOn && !only ? secStatus('On', true) : secStatus('Off'))}
+        ${securityRow('only', 'Passkey only', only ? 'Your password and codes are switched off, so only a passkey can sign in.' : keys.length ? 'Switch off your password and codes, so only a passkey can sign in. You’ll need a passkey on every device you use.' : 'Add a passkey first. Then you can switch off your password and codes.', keys.length ? btn('togglePasskeyOnly', only ? 'Turn off' : 'Turn on') : '', only ? secStatus('On', true) : secStatus('Off'))}
+      </ul>
+    </section>
+    <section class="sec-block" aria-labelledby="sec-recovery-title">
+      <h2 class="sec-heading" id="sec-recovery-title">Recovery</h2>
+      <ul class="sec-list">${securityRow('recovery', 'Recovery email', `${esc(p.email ? maskEmail(p.email) : 'Not set')}. If you can’t sign in, ${pv} sends a code here.`, notYet('Change'))}</ul>
+    </section>
+    <section class="sec-block" aria-labelledby="sec-account-title">
+      <h2 class="sec-heading" id="sec-account-title">Your account</h2>
+      <ul class="sec-list">
+        ${securityRow('account', 'Move to another provider', 'Take your handle, posts and followers with you. Your passkeys stay here, so you’ll set up new ones with your new provider.', notYet('Move'))}
+        ${securityRow('delete', 'Delete your Atmosphere account', 'Deletes it in every Atmosphere app.', notYet('Delete'))}
+      </ul>
+    </section>
+    <button class="btn btn-secondary btn-block" type="button" data-action="backToApp">${icon('arrow-left')}<span>Back to ${APP.name}</span></button>`);
+  const target = section && q(`#sec-${section}`);
+  if (target) {
+    target.classList.add('is-target');
+    target.scrollIntoView({ block: 'nearest' });
+  }
+  if (quiet) renderNotes();
+  else enter('pv.security');
+}
+
 /* ------------------------------------------------------------------------ */
 /* Browser account chooser (FedCM)                                          */
 /* ------------------------------------------------------------------------ */
+
+/* The browser's passkey prompts */
+
+function showBrowserPrompt(markup, stepId) {
+  if (!S.promptReturn) S.promptReturn = S.step;
+  els.fedcm.innerHTML = `<div class="fedcm-card pk-card" role="dialog" aria-labelledby="pk-title">${markup}</div>`;
+  els.fedcm.hidden = false;
+  currentTab().page.inert = true;
+  paintIcons();
+  (els.fedcm.querySelector('[data-autofocus]') || els.fedcm.querySelector('button'))?.focus();
+  enter(stepId);
+}
+
+function closeBrowserPrompt() {
+  closeFedcm();
+  if (S.promptReturn) {
+    S.step = S.promptReturn;
+    currentTab().step = S.step;
+    S.promptReturn = null;
+    renderNotes();
+  }
+}
+
+function pkHead(title, sub) {
+  return `<div class="fedcm-head">${icon('key-round', 'pk-key')}<div class="fedcm-head-text" id="pk-title"><strong>${title}</strong><span>${sub}</span></div><button class="icon-btn icon-btn-sm" type="button" data-action="passkeyCancel" aria-label="Close">${icon('x')}</button></div>`;
+}
+
+function pkBusy() {
+  const card = els.fedcm.querySelector('.pk-card');
+  card.innerHTML = `<div class="fedcm-busy">${icon('fingerprint')}<span>Waiting for your fingerprint, face or screen lock…</span></div>`;
+  paintIcons();
+}
+
+// Signing in: the browser offers the passkey saved for this site, if any.
+function passkeySignIn(p) {
+  const host = esc(hostFor(p));
+  S.pk = { mode: 'get', p, onDone: () => signedInWithPasskey(p) };
+  if (passkeyHere(p.handle)) {
+    showBrowserPrompt(`
+      ${pkHead(`Sign in to ${host}`, 'with a passkey')}
+      <div class="pk-body">
+        <div class="pk-acct">${accountRow(p, { meta: false })}</div>
+        <p>Use your fingerprint, face or screen lock to sign in.</p>
+      </div>
+      <div class="pk-actions"><button class="btn btn-secondary btn-sm" type="button" data-action="passkeyCancel">Cancel</button><button class="btn btn-primary btn-sm" type="button" data-action="passkeyConfirm" data-autofocus>Continue</button></div>
+      <p class="fedcm-fine">Your browser keeps this passkey for ${host}. It only works on ${host}, so a lookalike site can’t use it.</p>`, 'browser.passkey');
+    return;
+  }
+  track('browser.no_passkey_on_device');
+  showBrowserPrompt(`
+    ${pkHead(`Sign in to ${host}`, 'with a passkey')}
+    <div class="pk-body"><p><strong>There are no passkeys for ${host} on this device.</strong></p><p>If your passkey is on a phone or tablet, you can use it from there.</p></div>
+    <button class="fedcm-other" type="button" data-action="passkeyOtherDevice">${icon('smartphone')}Use a phone or tablet</button>
+    <div class="pk-actions"><button class="btn btn-secondary btn-sm" type="button" data-action="passkeyCancel" data-autofocus>Cancel</button></div>`, 'browser.passkey');
+}
+
+// Creating: the browser makes a passkey for the provider's site.
+function passkeyCreate({ host, label, onDone, onCancel }) {
+  S.pk = { mode: 'create', onDone, onCancel };
+  showBrowserPrompt(`
+    ${pkHead(`Create a passkey for ${esc(host)}`, esc(label))}
+    <div class="pk-body"><p>Your browser saves this passkey on this device. You’ll sign in to ${esc(host)} with your fingerprint, face or screen lock instead of a password.</p></div>
+    <div class="pk-actions"><button class="btn btn-secondary btn-sm" type="button" data-action="passkeyCancel">Cancel</button><button class="btn btn-primary btn-sm" type="button" data-action="passkeyConfirm" data-autofocus>Continue</button></div>
+    <p class="fedcm-fine">A passkey only works on ${esc(host)}, so a lookalike site can’t use it.</p>`, 'browser.passkeyCreate');
+}
+
+function passkeyOtherDevice() {
+  track('browser.passkey_other_device');
+  const host = esc(hostFor(S.pk.p));
+  els.fedcm.querySelector('.pk-card').innerHTML = `
+    ${pkHead('Use a passkey from a phone or tablet', host)}
+    <div class="pk-body pk-qr">${icon('qr-code', 'pk-qr-icon')}<p>Scan this code with the phone or tablet that has your passkey for ${host}.</p><p class="pk-wait">${icon('loader-circle', 'spin')}<span>Waiting for your phone…</span></p></div>
+    <div class="pk-actions"><button class="btn btn-secondary btn-sm" type="button" data-action="passkeyCancel" data-autofocus>Cancel</button></div>`;
+  paintIcons();
+  els.fedcm.querySelector('[data-autofocus]')?.focus();
+}
+
+function passkeyConfirm() {
+  const pk = S.pk;
+  pkBusy();
+  later(() => {
+    closeBrowserPrompt();
+    S.pk = null;
+    pk.onDone();
+  }, 900);
+}
+
+function passkeyCancel() {
+  const pk = S.pk;
+  S.pk = null;
+  closeBrowserPrompt();
+  track('browser.passkey_cancelled');
+  if (pk?.onCancel) pk.onCancel();
+  else if (pk?.mode === 'get') {
+    const box = q('#passkey-msg');
+    if (box) {
+      box.innerHTML = `<div class="notice notice-info">${icon('info')}<p>Can’t use a passkey? Sign in with your password, or <button type="button" class="link-btn" data-action="forgotPassword">get a code by email</button>.</p></div>`;
+      paintIcons();
+    }
+  }
+}
+
+function signedInWithPasskey(p) {
+  track('provider.signed_in', 'passkey');
+  showProviderPage(p, '/oauth/authorize', 'Signing in', `
+    <div class="returning">${handshake({ provider: p.provider })}
+      <p class="returning-text">${icon('loader-circle', 'spin')}Signed in with your passkey…</p>
+    </div>`);
+  later(() => pvConsent(p), 700);
+}
 
 function fedcmChoose() {
   const accounts = S.browserAccounts.map(profile).filter(Boolean);
@@ -949,11 +1279,18 @@ function fixMessage(raw, r) {
 
 function fdFind({ mode = 'signin' } = {}) {
   const search = mode === 'search';
+  const recover = mode === 'recover';
   combo.items = [];
   combo.active = -1;
+  const heading = search ? 'Find your Atmosphere account' : recover ? 'Type the handle from the email' : `Sign in to ${APP.name}`;
+  const lede = search
+    ? 'Start typing your name or handle. We’ll show matching Atmosphere accounts.'
+    : recover
+      ? 'Your provider asks for the sign-in code from the same email next.'
+      : 'Use your Atmosphere account. If you use Bluesky or another Atmosphere app, you already have one.';
   showSheet(sheet(`
-    <h2 id="sheet-title" class="sheet-title">${search ? 'Find your Atmosphere account' : `Sign in to ${APP.name}`}</h2>
-    <p>${search ? 'Start typing your name or handle. We’ll show matching Atmosphere accounts.' : 'Use your Atmosphere account. If you use Bluesky or another Atmosphere app, you already have one.'}</p>
+    <h2 id="sheet-title" class="sheet-title">${heading}</h2>
+    <p>${lede}</p>
     <form class="form" data-form="find" novalidate autocomplete="off">
       <div class="field">
         <label for="handle">${search ? 'Your name or handle' : 'Your handle'}</label>
@@ -961,16 +1298,17 @@ function fdFind({ mode = 'signin' } = {}) {
           <input id="handle" name="handle" type="text" data-autofocus role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="handle-list" aria-describedby="handle-hint handle-msg" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go">
           <ul id="handle-list" class="combo-list" role="listbox" aria-label="Matching accounts" hidden></ul>
         </div>
-        <p id="handle-hint" class="hint">It’s on your profile, like <span class="nowrap">sam.bsky.social</span> or <span class="nowrap">rae.blacksky.app</span>. You can type your name instead.</p>
+        <p id="handle-hint" class="hint">${recover ? 'It’s near the top of the email, under “Your handle”.' : 'It’s on your profile, like <span class="nowrap">sam.bsky.social</span> or <span class="nowrap">rae.blacksky.app</span>. You can type your name instead.'}</p>
         <div id="handle-msg" class="field-msg" aria-live="polite"></div>
       </div>
-      <button class="btn btn-primary btn-block" type="submit">Find my account</button>
+      <button class="btn btn-primary btn-block" type="submit">${recover ? 'Continue' : 'Find my account'}</button>
     </form>
     <div class="sheet-links">
-      <button class="link-btn" type="button" data-action="goForgot">Forgot your handle?</button>
-      <button class="link-btn" type="button" data-action="goCreate">New here? Create an Atmosphere account</button>
-    </div>`));
-  enter('fd.find');
+      ${recover
+        ? '<button class="link-btn" type="button" data-action="goForgot">No email? Try another provider</button>'
+        : '<button class="link-btn" type="button" data-action="goForgot">Forgot your handle?</button><button class="link-btn" type="button" data-action="goCreate">New here? Create an Atmosphere account</button>'}
+    </div>`, recover ? { back: 'goForgot' } : {}));
+  enter(recover ? 'fd.recover' : 'fd.find');
 }
 
 function renderCombo(input, items) {
@@ -1201,7 +1539,7 @@ function submitForgot(form) {
   const owner = allProfiles().find((p) => p.email && p.email.toLowerCase() === email.toLowerCase());
   // Only the provider that really holds the account sends anything, as in real life.
   if (owner && (choice === 'unsure' || choice === owner.provider)) {
-    later(() => deliverMail(recoveryMail(owner, { link: true })), 2600);
+    later(() => deliverMail(recoveryMail(owner)), 2600);
   }
   fdCheckEmail(email, choice);
 }
@@ -1216,6 +1554,7 @@ function fdCheckEmail(email, choice) {
     <p>If ${unsure ? 'one of the providers we asked' : esc(who)} hosts an Atmosphere account for <strong>${esc(email)}</strong>, it’s emailing your handle and a sign-in code there now.</p>
     ${unsure ? `<p class="hint">We asked ${asked}. Only the provider that hosts your account will email you.</p>` : ''}
     <p>The email comes from ${esc(who)}, not from ${APP.name}. It can take a minute or two, and sometimes lands in spam or junk.</p>
+    <button class="btn btn-primary btn-block" type="button" data-action="goRecover">I’ve got the email</button>
     <div class="sheet-links">
       <button class="link-btn" type="button" data-action="goForgot" data-email="${esc(email)}">Try another provider</button>
       <button class="link-btn" type="button" data-action="goSearch">Search by name instead</button>
@@ -1227,14 +1566,12 @@ function fdCheckEmail(email, choice) {
 /* Mail                                                                     */
 /* ------------------------------------------------------------------------ */
 
-// With a link when Front Door asked for it; code only when the person is
-// already on the provider's code page.
-function recoveryMail(p, { link }) {
+// A code, never a link: people type it on the provider's page, in the tab
+// where they started. The provider remembers which account it sent one to.
+function recoveryMail(p) {
   const pv = PROVIDERS[p.provider];
   S.code = newCode();
-  const next = link
-    ? `<p><button class="btn btn-primary" type="button" data-action="mailContinue" data-handle="${p.handle}">Continue signing in to ${APP.name}</button></p><p class="fine">The button opens ${esc(pv.name)} in a new tab with the code filled in.</p>`
-    : `<p>Enter the code on ${esc(pv.name)}’s page to carry on signing in to ${APP.name}.</p>`;
+  S.codeFor = p.handle;
   return {
     id: `recovery-${Date.now()}`,
     from: pv.name,
@@ -1250,8 +1587,8 @@ function recoveryMail(p, { link }) {
         <div><dt>Your handle</dt><dd>@${esc(p.handle)}</dd></div>
         <div><dt>Your sign-in code</dt><dd class="code">${formatCode(S.code)}</dd></div>
       </dl>
-      <p>The code works for 15 minutes.</p>
-      ${next}
+      <p>The code works for 15 minutes. Go back to ${APP.name}, and enter the code when ${esc(pv.name)} asks for it.</p>
+      <p>We never put a sign-in link in an email. If an email asks you to click to sign in, it isn’t from us.</p>
       <p>If you didn’t ask for this, you can ignore this email. Nobody can get into your account without the code.</p>
       <p>${esc(pv.name)}, the provider that hosts your Atmosphere account</p>`,
   };
@@ -1268,7 +1605,7 @@ function welcomeMail(p) {
     preview: 'One tap to confirm. You can keep using Potluck in the meantime.',
     body: `
       <p>Hi ${esc(first(p.name))},</p>
-      <p>Your Atmosphere account is ready, and ${esc(pv.name)} is hosting it. Please confirm this is your email address, so you can get back into your account if you ever forget your password.</p>
+      <p>Your Atmosphere account is ready, and ${esc(pv.name)} is hosting it. Please confirm this is your email address, so you can get back into your account if you ever can’t sign in.</p>
       <p><button class="btn btn-primary" type="button" data-action="mailConfirm" data-handle="${p.handle}">Confirm my email address</button></p>
       <dl class="mail-facts"><div><dt>Your handle</dt><dd>@${esc(p.handle)}</dd></div></dl>
       <p>Your Atmosphere account works on Potluck, Bluesky and every other Atmosphere app. Keep this email: it’s an easy place to find your handle later.</p>
@@ -1397,10 +1734,14 @@ function toProvider(handle) {
   const p = profile(handle);
   S.pending = { profile: p, isNew: false, via: 'redirect' };
   track('frontdoor.sent_to_provider', providerName(p));
-  pvSignin(p);
+  if (S.code && S.codeFor === p.handle) pvCode(p, { recovering: true });
+  else pvSignin(p);
 }
 
-function pvSignin(p) {
+function pvSignin(p, { quiet = false } = {}) {
+  const suggest = passkeyHere(p.handle)
+    ? `<button type="button" class="autofill" data-action="usePasskey">${icon('key-round')}<span class="autofill-value">Passkey for @${esc(p.handle)}</span><span class="autofill-source">On this device</span></button>`
+    : '';
   showProviderPage(p, '/oauth/authorize', 'Sign in', `
     ${handshake({ provider: p.provider })}
     <h1 class="pv-title">Sign in to your Atmosphere account</h1>
@@ -1412,13 +1753,18 @@ function pvSignin(p) {
       </div>
       <div class="field">
         <div class="label-row"><label for="current-password">Password</label><button type="button" class="link-btn" data-action="forgotPassword">Forgot password?</button></div>
-        ${passwordInput('current-password', 'current-password')}
+        ${passwordInput('current-password', 'current-password webauthn')}
+        ${suggest}
         <p class="proto-hint">Any password works. Please don’t type a real one.</p>
         <div id="current-password-msg" class="field-msg" aria-live="polite"></div>
       </div>
       <button class="btn btn-primary btn-block" type="submit">Sign in</button>
-    </form>`);
-  enter('pv.signin');
+    </form>
+    <div class="or-divider"><span>or</span></div>
+    <button class="btn btn-secondary btn-block" type="button" data-action="usePasskey">${icon('key-round')}<span>Use a passkey</span></button>
+    <div id="passkey-msg" aria-live="polite"></div>`);
+  if (quiet) renderNotes();
+  else enter('pv.signin');
 }
 
 function submitSignin(form) {
@@ -1427,9 +1773,83 @@ function submitSignin(form) {
     fieldMsg('current-password', 'error', 'Type your password, or choose “Forgot password?”.');
     return;
   }
-  track('provider.signed_in');
+  const p = S.pending.profile;
+  if (S.passkeyOnly.has(p.handle)) {
+    track('provider.password_refused', 'passkey only');
+    fieldMsg('current-password', 'error', `This account signs in with a passkey only. Use a passkey, or <button type="button" class="link-btn" data-action="forgotPassword">get a code by email</button> if you can’t.`);
+    return;
+  }
+  track('provider.password_accepted');
   busy(form.querySelector('[type="submit"]'), 'Signing in…');
-  later(() => pvConsent(S.pending.profile), 700);
+  later(() => (S.codesOn.has(p.handle) ? pvTotp(p) : afterPassword(p)), 700);
+}
+
+// Signed in with a password (and a code, where that's on).
+function afterPassword(p) {
+  track('provider.signed_in', 'password');
+  if (!passkeyHere(p.handle) && !S.offered.has(p.handle)) pvPasskeyOffer(p);
+  else pvConsent(p);
+}
+
+function pvPasskeyOffer(p) {
+  S.offered.add(p.handle);
+  const pv = esc(providerName(p));
+  showProviderPage(p, '/account/passkey', 'Sign in faster', `
+    <div class="notice notice-ok">${icon('circle-check')}<p>You’re signed in to your Atmosphere account, <strong>@${esc(p.handle)}</strong>.</p></div>
+    <span class="sheet-hero">${icon('key-round')}</span>
+    <h1 class="pv-title">Sign in faster next time?</h1>
+    <p class="pv-lede">Add a passkey, and next time you can sign in with your fingerprint, face or screen lock instead of your password. A passkey can’t be phished.</p>
+    <p class="fine">Your browser saves it on this device. It works with ${pv} in every Atmosphere app.</p>
+    <div class="btn-row">
+      <button class="btn btn-secondary" type="button" data-action="passkeyOfferSkip">Not now</button>
+      <button class="btn btn-primary" type="button" data-action="passkeyOfferAdd">Add a passkey</button>
+    </div>`);
+  enter('pv.passkeyOffer');
+}
+
+// The browser makes a passkey for a signed-in account, then the page moves on.
+function addPasskeyFor(p, where, next) {
+  passkeyCreate({
+    host: hostFor(p),
+    label: `@${p.handle}`,
+    onDone: () => {
+      savePasskey(p.handle);
+      track('provider.passkey_added', where);
+      next();
+    },
+  });
+}
+
+function pvTotp(p) {
+  S.totp = newCode();
+  showProviderPage(p, '/oauth/authorize/code', 'Verification code', `
+    ${handshake({ provider: p.provider })}
+    <h1 class="pv-title">Enter the code from your authenticator app</h1>
+    <p class="pv-lede">Open the app you set up for <strong>@${esc(p.handle)}</strong> and type the 6-digit code it shows.</p>
+    <form class="form" data-form="totp" novalidate>
+      <div class="field">
+        <label for="totp">Code</label>
+        <input id="totp" name="totp" type="text" class="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required aria-describedby="totp-msg" data-autofocus>
+        ${autofillButton('totp', formatCode(S.totp), 'From Passwords', 'key-round')}
+        <p class="proto-hint">Any 6 digits work.</p>
+        <div id="totp-msg" class="field-msg" aria-live="polite"></div>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit">Continue</button>
+    </form>
+    ${passkeyHere(p.handle) ? `<button class="btn btn-secondary btn-block" type="button" data-action="usePasskey">${icon('key-round')}<span>Use a passkey instead</span></button>` : ''}
+    <p class="pv-alt">Lost your phone? <button class="link-btn" type="button" data-action="forgotPassword">Get a code by email</button></p>`);
+  enter('pv.totp');
+}
+
+function submitTotp(form) {
+  const digits = $('#totp', form).value.replace(/\D/g, '');
+  if (digits.length !== 6) {
+    fieldMsg('totp', 'error', 'Type the 6-digit code from your authenticator app.');
+    return;
+  }
+  track('provider.verification_code_accepted');
+  busy(form.querySelector('[type="submit"]'), 'Checking…');
+  later(() => afterPassword(S.pending.profile), 600);
 }
 
 function forgotPassword() {
@@ -1440,22 +1860,22 @@ function forgotPassword() {
   pvCode(p);
 }
 
-function pvCode(p, { prefilled = false } = {}) {
+function pvCode(p, { recovering = false } = {}) {
   showProviderPage(p, '/account/recover', 'Enter your code', `
     ${handshake({ provider: p.provider })}
     <h1 class="pv-title">Enter your sign-in code</h1>
     <p class="pv-lede">We sent a 6-digit code to ${esc(maskEmail(p.email))}.</p>
-    ${prefilled ? `<div class="notice notice-auto">${icon('wand-sparkles')}<p>We filled in the code from your email link.</p></div>` : ''}
     <form class="form" data-form="code" novalidate>
       <div class="field">
         <label for="otp">Code</label>
-        <input id="otp" name="otp" type="text" class="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required aria-describedby="otp-msg" value="${prefilled && S.code ? formatCode(S.code) : ''}">
-        ${!prefilled && S.code ? autofillButton('otp', formatCode(S.code), 'From Mail', 'mail') : ''}
+        <input id="otp" name="otp" type="text" class="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required aria-describedby="otp-msg" value="">
+        ${S.code ? autofillButton('otp', formatCode(S.code), 'From Mail', 'mail') : ''}
         <div id="otp-msg" class="field-msg" aria-live="polite"></div>
       </div>
       <button class="btn btn-primary btn-block" type="submit">Sign in</button>
     </form>
-    <p class="pv-alt">No email? <button class="link-btn" type="button" data-action="resendCode">Send a new code</button></p>`);
+    <p class="pv-alt">No email? <button class="link-btn" type="button" data-action="resendCode">Send a new code</button></p>
+    ${recovering ? `<p class="pv-alt">Know your password? <button class="link-btn" type="button" data-action="signinInstead">Sign in with it instead</button></p>` : ''}`);
   enter('pv.code');
 }
 
@@ -1466,17 +1886,23 @@ function submitCode(form) {
     return;
   }
   track('provider.code_accepted');
+  S.code = null;
+  S.codeFor = null;
   busy(form.querySelector('[type="submit"]'), 'Checking…');
   later(() => pvNewPassword(S.pending.profile), 600);
 }
 
 function pvNewPassword(p) {
   const pv = PROVIDERS[p.provider];
-  showProviderPage(p, '/account/password', 'New password', `
+  const lost = passkeysFor(p.handle).filter((k) => !k.here);
+  showProviderPage(p, '/account/password', 'Sign in next time', `
     <div class="notice notice-ok">${icon('circle-check')}<p>You’re signed in to your Atmosphere account, <strong>@${esc(p.handle)}</strong>.</p></div>
-    <h1 class="pv-title">Set a new password?</h1>
-    <p class="pv-lede">You’ll need it next time you sign in. You can also do this later in your account settings on ${esc(pv.name)}.</p>
-    <form class="form" data-form="newPassword" novalidate>
+    <h1 class="pv-title">How do you want to sign in next time?</h1>
+    <p class="pv-lede">Add a passkey, or set a new password. You can also do this later in your account settings on ${esc(pv.name)}.</p>
+    ${lost.length ? `<div class="notice notice-info" id="lost-passkeys">${icon('smartphone')}<p>Your passkey on <strong>${esc(lost.map((k) => k.device).join(', '))}</strong> still works on that device. If it’s lost, remove it so nobody else can use it. <button type="button" class="link-btn" data-action="removeLostPasskeys">Remove it</button></p></div>` : ''}
+    <button class="btn btn-primary btn-block" type="button" data-action="recoveryAddPasskey">${icon('key-round')}<span>Add a passkey</span></button>
+    <button type="button" class="disclosure" data-action="toggleNewPassword" aria-expanded="false" aria-controls="new-password-form">Set a new password instead${icon('chevron-down')}</button>
+    <form class="form" data-form="newPassword" id="new-password-form" novalidate hidden>
       <input class="sr-only" type="text" name="username" autocomplete="username" value="${esc(p.handle)}" readonly tabindex="-1" aria-hidden="true">
       <div class="field">
         <label for="reset-password">New password</label>
@@ -1484,11 +1910,9 @@ function pvNewPassword(p) {
         <p class="proto-hint">Any password works. Please don’t type a real one.</p>
         <div id="reset-password-msg" class="field-msg" aria-live="polite"></div>
       </div>
-      <div class="btn-row">
-        <button class="btn btn-secondary" type="button" data-action="skipPassword">Not now</button>
-        <button class="btn btn-primary" type="submit">Save password</button>
-      </div>
-    </form>`);
+      <button class="btn btn-secondary btn-block" type="submit">Save password</button>
+    </form>
+    <p class="pv-alt"><button class="link-btn" type="button" data-action="skipPassword">Not now</button></p>`);
   enter('pv.newPassword');
 }
 
@@ -1507,7 +1931,26 @@ function pvSignup(pid) {
         ${persona.email ? autofillButton('signup-email', persona.email, 'Saved in this browser', 'key-round') : ''}
         <div id="signup-email-msg" class="field-msg" aria-live="polite"></div>
       </div>
-      <div class="field">
+      <fieldset class="field">
+        <legend>How do you want to sign in?</legend>
+        <div class="provider-list method-list">
+          <label class="provider-opt">
+            <input type="radio" name="method" value="passkey">
+            <span class="tile tile-sm" aria-hidden="true">${icon('key-round')}</span>
+            <span class="po-text"><span class="po-name">Passkey</span><span class="po-blurb">Use your fingerprint, face or screen lock. Nothing to remember.</span></span>
+            <span class="po-check" aria-hidden="true">${icon('check')}</span>
+          </label>
+          <label class="provider-opt">
+            <input type="radio" name="method" value="password">
+            <span class="tile tile-sm" aria-hidden="true">${icon('rectangle-ellipsis')}</span>
+            <span class="po-text"><span class="po-name">Password</span><span class="po-blurb">Choose a password of at least 8 characters.</span></span>
+            <span class="po-check" aria-hidden="true">${icon('check')}</span>
+          </label>
+        </div>
+        <div id="method-msg" class="field-msg" aria-live="polite"></div>
+      </fieldset>
+      <p class="hint" id="passkey-note" hidden>Your browser saves the passkey on this device. It works with ${esc(pv.name)} in every Atmosphere app. If you ever move your account to another provider, you’ll set up a new passkey there.</p>
+      <div class="field" id="password-field" hidden>
         <label for="new-password">Password</label>
         ${passwordInput('new-password', 'new-password')}
         <p class="hint">At least 8 characters.</p>
@@ -1523,20 +1966,41 @@ function pvSignup(pid) {
 
 function submitSignup(form) {
   const email = $('#signup-email', form).value.trim();
+  const method = form.querySelector('input[name="method"]:checked')?.value;
   const password = $('#new-password', form).value;
   fieldMsg('signup-email', 'error', '');
+  fieldMsg('method', 'error', '');
   fieldMsg('new-password', 'error', '');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     fieldMsg('signup-email', 'error', 'Enter an email address, like name@example.com. You’ll use it if you ever need to get back into your account.');
     return;
   }
-  if (password.length < 8) {
-    fieldMsg('new-password', 'error', 'Use at least 8 characters.');
+  if (!method) {
+    fieldMsg('method', 'error', 'Choose a passkey or a password.');
     return;
   }
   S.draft.email = email;
-  track('provider.signup_details_entered');
-  pvHandle();
+  if (method === 'password') {
+    if (password.length < 8) {
+      fieldMsg('new-password', 'error', 'Use at least 8 characters.');
+      return;
+    }
+    S.draft.passkey = false;
+    track('provider.signup_details_entered', 'password');
+    pvHandle();
+    return;
+  }
+  track('provider.signup_details_entered', 'passkey');
+  passkeyCreate({
+    host: PROVIDERS[S.draft.provider].host,
+    label: email,
+    onDone: () => {
+      S.draft.passkey = true;
+      track('provider.passkey_created');
+      pvHandle();
+    },
+    onCancel: () => fieldMsg('method', 'info', 'No passkey was made. Try again, or choose a password.'),
+  });
 }
 
 function normaliseHandle(raw, suffix) {
@@ -1615,6 +2079,10 @@ function submitHandle(form) {
   const name = $('#display-name', form).value.trim() || personaFor(SCENARIOS[S.scenario]).name;
   const p = { name, handle: `${normaliseHandle($('#new-handle', form).value, suffix)}.${suffix}`, provider: pid, email: S.draft.email };
   S.created.push(p);
+  if (S.draft.passkey) {
+    savePasskey(p.handle);
+    S.passwordless.add(p.handle);
+  } else track('provider.password_set');
   S.pending = { profile: p, isNew: true, via: 'redirect' };
   S.flowStart = S.flowStart || Date.now();
   track('provider.account_created', PROVIDERS[pid].name);
@@ -1767,6 +2235,8 @@ const ACTIONS = {
   goSearch: () => fdFind({ mode: 'search' }),
   goCreate: () => fdCreate(),
   goForgot: (el) => fdForgot(el.dataset.email || ''),
+  goRecover: () => fdFind({ mode: 'recover' }),
+  signinInstead: () => pvSignin(S.pending.profile),
   toProvider: (el) => toProvider(el.dataset.handle),
 
   fedcmClose: () => {
@@ -1807,10 +2277,14 @@ const ACTIONS = {
     fdFind();
   },
   forgotPassword,
+  usePasskey: () => passkeySignIn(S.pending.profile),
+  passkeyConfirm,
+  passkeyCancel,
+  passkeyOtherDevice,
   resendCode: () => {
     track('provider.code_resent');
-    const { profile: p, via } = S.pending;
-    later(() => deliverMail(recoveryMail(p, { link: via === 'email' })), 1800);
+    const p = S.pending.profile;
+    later(() => deliverMail(recoveryMail(p)), 1800);
     toast('We’ve sent a new code. Use the latest email.', 'mail');
   },
   skipPassword: () => {
@@ -1844,16 +2318,6 @@ const ACTIONS = {
   hideNotification: () => {
     els.notif.hidden = true;
   },
-  // A link in an email opens the provider in a new tab, as it would for real.
-  mailContinue: (el) => {
-    const p = profile(el.dataset.handle);
-    S.pending = { profile: p, isNew: false, via: 'email' };
-    S.flowStart = S.flowStart || Date.now();
-    track('inbox.link_followed');
-    if (S.authTab && tabById(S.authTab)) activateTab(S.authTab);
-    else S.authTab = openTab('auth').id;
-    pvCode(p, { prefilled: true });
-  },
   mailConfirm: (el) => {
     const p = profile(el.dataset.handle);
     track('provider.email_confirmed');
@@ -1874,12 +2338,93 @@ const ACTIONS = {
     appSignin({ quiet: true });
     ACTIONS.atmosphereButton();
   },
-  manageAccount: () => {
+  openSettings: () => {
+    document.querySelector('.acct-menu[open]')?.removeAttribute('open');
+    appSettings();
+  },
+  manageAccount: () => openProviderSettings(''),
+  providerSettings: (el) => openProviderSettings(el.dataset.section),
+  backToApp: () => {
+    track('provider.back_to_app');
+    if (S.manageTab) closeTab(S.manageTab, { to: S.appTab });
+    else goToAppTab();
+  },
+  disconnectApp: () => {
     const p = S.signedIn;
-    S.visited.add('manage');
-    track('app.manage_account_opened', providerName(p));
-    renderNotes();
-    toast(`This would open your account settings on ${hostFor(p)}. It isn’t part of this prototype.`, 'external-link');
+    track('app.disconnected', providerName(p));
+    S.approved.delete(p.handle);
+    S.signedIn = null;
+    S.flash = 'disconnected';
+    appSignin();
+  },
+  notInPrototype: () => toast('That part of the provider’s settings isn’t in this prototype.'),
+  passkeyOfferAdd: () => {
+    const p = S.pending.profile;
+    addPasskeyFor(p, 'after sign-in', () => {
+      toast('Passkey saved. Next time, the browser offers it on the sign-in page.', 'key-round');
+      pvConsent(p);
+    });
+  },
+  passkeyOfferSkip: () => {
+    track('provider.passkey_declined');
+    pvConsent(S.pending.profile);
+  },
+  recoveryAddPasskey: () => {
+    const p = S.pending.profile;
+    addPasskeyFor(p, 'after recovery', () => {
+      toast('Passkey saved. Next time, sign in with it instead of a password.', 'key-round');
+      pvConsent(p);
+    });
+  },
+  toggleNewPassword: (el) => {
+    const open = el.getAttribute('aria-expanded') !== 'true';
+    el.setAttribute('aria-expanded', String(open));
+    q('#new-password-form').hidden = !open;
+    if (open) q('#reset-password').focus();
+  },
+  removeLostPasskeys: () => {
+    const p = S.pending.profile;
+    S.passkeys.set(p.handle, passkeysFor(p.handle).filter((k) => k.here));
+    track('provider.passkey_removed', 'lost device');
+    q('#lost-passkeys').innerHTML = `${icon('circle-check')}<p>Removed. That passkey no longer works.</p>`;
+    q('#lost-passkeys').className = 'notice notice-ok';
+    paintIcons();
+  },
+  securityAddPasskey: () => {
+    const p = S.signedIn;
+    // Browsers refuse a second passkey for the same account on one device.
+    if (passkeyHere(p.handle)) {
+      toast('This device already has a passkey for this account. To add another, open this page on your other phone or computer.', 'key-round');
+      return;
+    }
+    addPasskeyFor(p, 'settings', () => pvSecurity(p, 'passkeys', { quiet: true }));
+  },
+  removePasskey: (el) => {
+    const p = S.signedIn;
+    const keys = passkeysFor(p.handle).filter((_, i) => i !== Number(el.dataset.index));
+    if (keys.length) S.passkeys.set(p.handle, keys);
+    else S.passkeys.delete(p.handle);
+    track('provider.passkey_removed');
+    if (!keys.length && S.passkeyOnly.delete(p.handle)) toast('Passkey only is off, because there are no passkeys left.', 'info');
+    pvSecurity(p, 'passkeys', { quiet: true });
+  },
+  togglePasskeyOnly: () => {
+    const p = S.signedIn;
+    const on = !S.passkeyOnly.has(p.handle);
+    if (on) S.passkeyOnly.add(p.handle);
+    else S.passkeyOnly.delete(p.handle);
+    track(on ? 'provider.passkey_only_on' : 'provider.passkey_only_off');
+    pvSecurity(p, 'only', { quiet: true });
+    toast(on ? 'Passkey only is on. Your password and codes no longer work.' : 'Passkey only is off. Your password works again.', 'shield-check');
+  },
+  toggleCodes: () => {
+    const p = S.signedIn;
+    const on = !S.codesOn.has(p.handle);
+    if (on) S.codesOn.add(p.handle);
+    else S.codesOn.delete(p.handle);
+    track(on ? 'provider.codes_on' : 'provider.codes_off');
+    pvSecurity(p, 'codes', { quiet: true });
+    toast(on ? 'Verification codes are on. In real life you’d scan a code into your authenticator app first.' : 'Verification codes are off.', 'shield-check');
   },
   signOut: () => {
     track('app.signed_out');
@@ -1895,6 +2440,7 @@ const FORMS = {
   create: submitCreate,
   forgot: submitForgot,
   signin: submitSignin,
+  totp: submitTotp,
   code: submitCode,
   newPassword: (form) => {
     if (!$('#reset-password', form).value) {
@@ -1902,6 +2448,7 @@ const FORMS = {
       return;
     }
     track('provider.password_changed');
+    S.passwordless.delete(S.pending.profile.handle);
     pvConsent(S.pending.profile);
   },
   signup: submitSignup,
@@ -1970,6 +2517,34 @@ document.addEventListener('input', (e) => {
 
 document.addEventListener('change', (e) => {
   const t = e.target;
+  if (t.name === 'method' && t.closest('form[data-form="signup"]')) {
+    q('#password-field').hidden = t.value !== 'password';
+    q('#passkey-note').hidden = t.value !== 'passkey';
+    fieldMsg('method', 'error', '');
+    if (t.value === 'password') q('#new-password').focus();
+    return;
+  }
+  if (t.dataset.vary && S.pending) {
+    const set = t.dataset.vary === 'codes' ? S.codesOn : S.passkeyOnly;
+    const h = S.pending.profile.handle;
+    if (t.checked) set.add(h);
+    else set.delete(h);
+    return;
+  }
+  if (t.name === 'vary-passkey' && S.pending) {
+    const h = S.pending.profile.handle;
+    if (t.value === 'none') S.passkeys.delete(h);
+    else S.passkeys.set(h, [{ device: t.value === 'here' ? thisDevice() : 'Old phone', here: t.value === 'here' }]);
+    if (S.step === 'pv.signin') pvSignin(S.pending.profile, { quiet: true });
+    return;
+  }
+  if (t.dataset.setting === 'share') {
+    const wasOff = S.declinedPost;
+    S.declinedPost = !t.checked;
+    track(t.checked ? 'app.sharing_on' : 'app.sharing_off');
+    if (t.checked && wasOff) toast(`You turned this down when you connected ${APP.name}, so ${providerName(S.signedIn)} would ask you to allow it first. That step isn’t in this prototype.`, 'shield-check');
+    return;
+  }
   if (t.name === 'provider' && t.closest('form[data-form="create"]')) {
     q('#other-server').hidden = t.value !== 'other';
     q('#create-submit').textContent = t.value === 'other' ? 'Continue with this provider' : `Continue with ${PROVIDERS[t.value].name}`;
@@ -2003,7 +2578,8 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Escape') {
     const { layer } = currentTab();
-    if (!els.fedcm.hidden) ACTIONS.fedcmClose();
+    if (!els.fedcm.hidden && S.pk) passkeyCancel();
+    else if (!els.fedcm.hidden) ACTIONS.fedcmClose();
     else if (!layer.hidden && layer.classList.contains('layer-sheet')) ACTIONS.closeSheet();
   }
 });
