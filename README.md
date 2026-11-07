@@ -67,8 +67,8 @@ These are starting positions to test, not conclusions. The numbers refer to the 
 Three looks keep it clear whose screen you're on:
 
 - **Atmosphere** (Front Door, the browser and the providers): black text on white or whitesmoke, set in Inter. This is the design being prototyped.
-- **Potluck** (the made-up app's own pages): dark brown with yellow accents, with Fraunces for headings and Newsreader for text. The sign-in card, where the Atmosphere button sits, stays pale cream. The Atmosphere button inside Potluck keeps the Atmosphere look, because it should look the same in every app.
-- **The prototype's frame** (the bar and the notes): a blueprint notepad, in Comic Neue and blueprint blues on squared and ruled paper. Nothing inside the simulated browser uses it.
+- **Potluck** (the made-up app's own pages): dark brown with yellow accents, with Fraunces for headings and Newsreader for text. The sign-in card, where the Atmosphere button sits, stays pale cream. The Atmosphere button inside Potluck keeps the Atmosphere look, because it should look the same in every app. Potluck's logo keeps Potluck's colours wherever it appears, including inside Atmosphere screens such as consent, as an app's logo would.
+- **The prototype's frame** (the bar, the notes, and the "Prototype" hints inside screens): a blueprint notepad, in Comic Neue and blueprint blues on squared and ruled paper. The hints are the only part of it inside the simulated browser, so they never read as part of the design.
 
 The palettes are custom properties at the top of `styles.css`: `--pl-*` for Potluck and `--bp-*` for the frame.
 

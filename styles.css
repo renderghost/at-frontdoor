@@ -982,23 +982,27 @@ a {
   white-space: nowrap;
 }
 
-/* Prototype-only instructions, so they never read as part of the design. */
+/* Prototype-only instructions, in the frame's notepad look, so they never
+   read as part of the design. */
 .proto-hint {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 6px;
   padding: 5px 9px;
-  border: 1px dashed var(--ink);
+  border: 1.5px dashed var(--bp-blue);
   border-radius: var(--r-xs);
-  background: var(--paper);
-  font-size: 12.5px;
+  background: var(--bp-card);
+  color: var(--bp-ink);
+  font-family: var(--bp-font);
+  font-size: 13px;
 }
 
 .proto-hint::before {
   content: "Prototype";
-  font-size: 10px;
-  font-weight: 750;
+  color: var(--bp-blue);
+  font-size: 10.5px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
@@ -1147,12 +1151,15 @@ a {
   border-width: 2px;
 }
 
+/* Potluck's own logo keeps Potluck's colours wherever it appears, including
+   inside Atmosphere screens, as an app's logo would on a real consent screen. */
 .tile-app {
-  background: var(--ink);
+  background: var(--pl-brown);
+  border-color: var(--pl-brown);
 }
 
 .tile-app .icon {
-  color: var(--paper);
+  color: var(--pl-yellow);
 }
 
 .glyph {
@@ -1249,15 +1256,6 @@ a {
 
 .potluck .tile-app .icon {
   color: var(--pl-bark);
-}
-
-.tab-icon .tile-app {
-  background: var(--pl-brown);
-  border-color: var(--pl-brown);
-}
-
-.tab-icon .tile-app .icon {
-  color: var(--pl-yellow);
 }
 
 .potluck .link {
