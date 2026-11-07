@@ -108,7 +108,8 @@ const SCENARIOS = {
     tryThis: [
       'Press <strong>Continue with Atmosphere</strong>, then <strong>Forgot your handle?</strong>',
       'Use Rae’s email and pick Blacksky, or “Not sure”.',
-      'Open the email when it arrives (top right). The inbox opens in a new tab, and the link in the email opens Blacksky in another. That tab closes once Rae is signed in.',
+      'Open the email when it arrives (top right). The inbox opens in a new tab. The email has Rae’s handle and a code, but no link.',
+      'Go back to Potluck’s tab, press <strong>I’ve got the email</strong> and type Rae’s handle. Blacksky asks for the code, then offers a passkey for next time.',
     ],
     data: [['Email', 'rae.thompson@example.com'], ['Provider', 'Blacksky'], ['Code', 'shown in the email']],
   },
@@ -231,9 +232,15 @@ const STEPS = {
     evidence: 'Some of MaEarth’s one-time codes never reached Hotmail users. A couple of dozen people contacted support, and more probably gave up (Erika, MaEarth).',
     open: 'How long to wait before suggesting another provider.',
   },
+  'fd.recover': {
+    title: 'Back to the tab you started in', owner: 'frontdoor', journey: ['find'], event: 'frontdoor.recovery_continued',
+    what: 'The email has no link, so the person comes back to the tab where they started and types the handle from the email. Front Door finds the provider as usual, and the provider asks for the code, because it knows it just sent one. Typing the handle once also helps it stick.',
+    principles: ['noDependency', 'forgive'],
+    open: 'Two things to carry from the email, the handle and the code. Is that too much on a phone?',
+  },
   'mail.open': {
     title: 'Email from the provider', owner: 'inbox', journey: [], event: 'inbox.email_opened',
-    what: 'The email opens in the person’s own inbox, in its own tab. It comes from the provider that holds the account, not from Potluck or Atmosphere. A recovery email carries the forgotten handle and a one-time code, and its link opens the provider in a new tab. A welcome email repeats the handle so it’s easy to find later.',
+    what: 'The email opens in the person’s own inbox, in its own tab. It comes from the provider that holds the account, not from Potluck or Atmosphere. A recovery email carries the forgotten handle and a one-time code, and no link: people go back to the tab where they started. A welcome email repeats the handle so it’s easy to find later.',
     principles: ['issuer', 'handshake'],
     open: 'Should every provider email say which app asked for it?',
   },
@@ -258,10 +265,10 @@ const STEPS = {
   },
   'pv.code': {
     title: 'Sign in with an emailed code', owner: 'provider', journey: ['auth'], event: 'provider.code_shown',
-    what: 'The code from the email signs the person in. Opened from the email’s link, this page is in a new tab with the code already filled in. Otherwise the browser offers to fill it in from Mail, as phones already do.',
-    principles: ['forgive'],
+    what: 'The code from the email signs the person in, typed on the provider’s own page in the tab where they started. The browser offers to fill it in from Mail, as phones already do. Codes are for recovery and new devices only, and never come as a link, so a lookalike email has nothing to click.',
+    principles: ['forgive', 'standard'],
     quote: ['ideally, there would be still a way to just put in your email and then log in with that.', 'Holke, Hypercerts'],
-    open: 'Should providers offer code sign-in all the time, not only for recovery?',
+    open: 'Should a code get into an account with “Passkey only” switched on, or should that wait, or need a saved recovery code?',
   },
   'pv.newPassword': {
     title: 'How to sign in next time', owner: 'provider', journey: ['auth'], event: 'provider.signin_method_offered',
@@ -357,6 +364,7 @@ function freshState(id) {
     pending: null, // { profile, isNew, via } while a sign-in is in progress
     draft: {},
     code: null,
+    codeFor: null,
     totp: null, // the code an authenticator app would show
     declinedPost: false,
     passkeys: new Map(), // handle -> passkeys held at the provider: [{ device, here }]
@@ -1271,11 +1279,18 @@ function fixMessage(raw, r) {
 
 function fdFind({ mode = 'signin' } = {}) {
   const search = mode === 'search';
+  const recover = mode === 'recover';
   combo.items = [];
   combo.active = -1;
+  const heading = search ? 'Find your Atmosphere account' : recover ? 'Type the handle from the email' : `Sign in to ${APP.name}`;
+  const lede = search
+    ? 'Start typing your name or handle. We’ll show matching Atmosphere accounts.'
+    : recover
+      ? 'Your provider asks for the sign-in code from the same email next.'
+      : 'Use your Atmosphere account. If you use Bluesky or another Atmosphere app, you already have one.';
   showSheet(sheet(`
-    <h2 id="sheet-title" class="sheet-title">${search ? 'Find your Atmosphere account' : `Sign in to ${APP.name}`}</h2>
-    <p>${search ? 'Start typing your name or handle. We’ll show matching Atmosphere accounts.' : 'Use your Atmosphere account. If you use Bluesky or another Atmosphere app, you already have one.'}</p>
+    <h2 id="sheet-title" class="sheet-title">${heading}</h2>
+    <p>${lede}</p>
     <form class="form" data-form="find" novalidate autocomplete="off">
       <div class="field">
         <label for="handle">${search ? 'Your name or handle' : 'Your handle'}</label>
@@ -1283,16 +1298,17 @@ function fdFind({ mode = 'signin' } = {}) {
           <input id="handle" name="handle" type="text" data-autofocus role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="handle-list" aria-describedby="handle-hint handle-msg" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go">
           <ul id="handle-list" class="combo-list" role="listbox" aria-label="Matching accounts" hidden></ul>
         </div>
-        <p id="handle-hint" class="hint">It’s on your profile, like <span class="nowrap">sam.bsky.social</span> or <span class="nowrap">rae.blacksky.app</span>. You can type your name instead.</p>
+        <p id="handle-hint" class="hint">${recover ? 'It’s near the top of the email, under “Your handle”.' : 'It’s on your profile, like <span class="nowrap">sam.bsky.social</span> or <span class="nowrap">rae.blacksky.app</span>. You can type your name instead.'}</p>
         <div id="handle-msg" class="field-msg" aria-live="polite"></div>
       </div>
-      <button class="btn btn-primary btn-block" type="submit">Find my account</button>
+      <button class="btn btn-primary btn-block" type="submit">${recover ? 'Continue' : 'Find my account'}</button>
     </form>
     <div class="sheet-links">
-      <button class="link-btn" type="button" data-action="goForgot">Forgot your handle?</button>
-      <button class="link-btn" type="button" data-action="goCreate">New here? Create an Atmosphere account</button>
-    </div>`));
-  enter('fd.find');
+      ${recover
+        ? '<button class="link-btn" type="button" data-action="goForgot">No email? Try another provider</button>'
+        : '<button class="link-btn" type="button" data-action="goForgot">Forgot your handle?</button><button class="link-btn" type="button" data-action="goCreate">New here? Create an Atmosphere account</button>'}
+    </div>`, recover ? { back: 'goForgot' } : {}));
+  enter(recover ? 'fd.recover' : 'fd.find');
 }
 
 function renderCombo(input, items) {
@@ -1523,7 +1539,7 @@ function submitForgot(form) {
   const owner = allProfiles().find((p) => p.email && p.email.toLowerCase() === email.toLowerCase());
   // Only the provider that really holds the account sends anything, as in real life.
   if (owner && (choice === 'unsure' || choice === owner.provider)) {
-    later(() => deliverMail(recoveryMail(owner, { link: true })), 2600);
+    later(() => deliverMail(recoveryMail(owner)), 2600);
   }
   fdCheckEmail(email, choice);
 }
@@ -1538,6 +1554,7 @@ function fdCheckEmail(email, choice) {
     <p>If ${unsure ? 'one of the providers we asked' : esc(who)} hosts an Atmosphere account for <strong>${esc(email)}</strong>, it’s emailing your handle and a sign-in code there now.</p>
     ${unsure ? `<p class="hint">We asked ${asked}. Only the provider that hosts your account will email you.</p>` : ''}
     <p>The email comes from ${esc(who)}, not from ${APP.name}. It can take a minute or two, and sometimes lands in spam or junk.</p>
+    <button class="btn btn-primary btn-block" type="button" data-action="goRecover">I’ve got the email</button>
     <div class="sheet-links">
       <button class="link-btn" type="button" data-action="goForgot" data-email="${esc(email)}">Try another provider</button>
       <button class="link-btn" type="button" data-action="goSearch">Search by name instead</button>
@@ -1549,14 +1566,12 @@ function fdCheckEmail(email, choice) {
 /* Mail                                                                     */
 /* ------------------------------------------------------------------------ */
 
-// With a link when Front Door asked for it; code only when the person is
-// already on the provider's code page.
-function recoveryMail(p, { link }) {
+// A code, never a link: people type it on the provider's page, in the tab
+// where they started. The provider remembers which account it sent one to.
+function recoveryMail(p) {
   const pv = PROVIDERS[p.provider];
   S.code = newCode();
-  const next = link
-    ? `<p><button class="btn btn-primary" type="button" data-action="mailContinue" data-handle="${p.handle}">Continue signing in to ${APP.name}</button></p><p class="fine">The button opens ${esc(pv.name)} in a new tab with the code filled in.</p>`
-    : `<p>Enter the code on ${esc(pv.name)}’s page to carry on signing in to ${APP.name}.</p>`;
+  S.codeFor = p.handle;
   return {
     id: `recovery-${Date.now()}`,
     from: pv.name,
@@ -1572,8 +1587,8 @@ function recoveryMail(p, { link }) {
         <div><dt>Your handle</dt><dd>@${esc(p.handle)}</dd></div>
         <div><dt>Your sign-in code</dt><dd class="code">${formatCode(S.code)}</dd></div>
       </dl>
-      <p>The code works for 15 minutes.</p>
-      ${next}
+      <p>The code works for 15 minutes. Go back to ${APP.name}, and enter the code when ${esc(pv.name)} asks for it.</p>
+      <p>We never put a sign-in link in an email. If an email asks you to click to sign in, it isn’t from us.</p>
       <p>If you didn’t ask for this, you can ignore this email. Nobody can get into your account without the code.</p>
       <p>${esc(pv.name)}, the provider that hosts your Atmosphere account</p>`,
   };
@@ -1719,7 +1734,8 @@ function toProvider(handle) {
   const p = profile(handle);
   S.pending = { profile: p, isNew: false, via: 'redirect' };
   track('frontdoor.sent_to_provider', providerName(p));
-  pvSignin(p);
+  if (S.code && S.codeFor === p.handle) pvCode(p, { recovering: true });
+  else pvSignin(p);
 }
 
 function pvSignin(p, { quiet = false } = {}) {
@@ -1844,22 +1860,22 @@ function forgotPassword() {
   pvCode(p);
 }
 
-function pvCode(p, { prefilled = false } = {}) {
+function pvCode(p, { recovering = false } = {}) {
   showProviderPage(p, '/account/recover', 'Enter your code', `
     ${handshake({ provider: p.provider })}
     <h1 class="pv-title">Enter your sign-in code</h1>
     <p class="pv-lede">We sent a 6-digit code to ${esc(maskEmail(p.email))}.</p>
-    ${prefilled ? `<div class="notice notice-auto">${icon('wand-sparkles')}<p>We filled in the code from your email link.</p></div>` : ''}
     <form class="form" data-form="code" novalidate>
       <div class="field">
         <label for="otp">Code</label>
-        <input id="otp" name="otp" type="text" class="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required aria-describedby="otp-msg" value="${prefilled && S.code ? formatCode(S.code) : ''}">
-        ${!prefilled && S.code ? autofillButton('otp', formatCode(S.code), 'From Mail', 'mail') : ''}
+        <input id="otp" name="otp" type="text" class="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required aria-describedby="otp-msg" value="">
+        ${S.code ? autofillButton('otp', formatCode(S.code), 'From Mail', 'mail') : ''}
         <div id="otp-msg" class="field-msg" aria-live="polite"></div>
       </div>
       <button class="btn btn-primary btn-block" type="submit">Sign in</button>
     </form>
-    <p class="pv-alt">No email? <button class="link-btn" type="button" data-action="resendCode">Send a new code</button></p>`);
+    <p class="pv-alt">No email? <button class="link-btn" type="button" data-action="resendCode">Send a new code</button></p>
+    ${recovering ? `<p class="pv-alt">Know your password? <button class="link-btn" type="button" data-action="signinInstead">Sign in with it instead</button></p>` : ''}`);
   enter('pv.code');
 }
 
@@ -1870,6 +1886,8 @@ function submitCode(form) {
     return;
   }
   track('provider.code_accepted');
+  S.code = null;
+  S.codeFor = null;
   busy(form.querySelector('[type="submit"]'), 'Checking…');
   later(() => pvNewPassword(S.pending.profile), 600);
 }
@@ -2217,6 +2235,8 @@ const ACTIONS = {
   goSearch: () => fdFind({ mode: 'search' }),
   goCreate: () => fdCreate(),
   goForgot: (el) => fdForgot(el.dataset.email || ''),
+  goRecover: () => fdFind({ mode: 'recover' }),
+  signinInstead: () => pvSignin(S.pending.profile),
   toProvider: (el) => toProvider(el.dataset.handle),
 
   fedcmClose: () => {
@@ -2263,8 +2283,8 @@ const ACTIONS = {
   passkeyOtherDevice,
   resendCode: () => {
     track('provider.code_resent');
-    const { profile: p, via } = S.pending;
-    later(() => deliverMail(recoveryMail(p, { link: via === 'email' })), 1800);
+    const p = S.pending.profile;
+    later(() => deliverMail(recoveryMail(p)), 1800);
     toast('We’ve sent a new code. Use the latest email.', 'mail');
   },
   skipPassword: () => {
@@ -2297,16 +2317,6 @@ const ACTIONS = {
   openMail: (el) => openMailTab(el.dataset.id),
   hideNotification: () => {
     els.notif.hidden = true;
-  },
-  // A link in an email opens the provider in a new tab, as it would for real.
-  mailContinue: (el) => {
-    const p = profile(el.dataset.handle);
-    S.pending = { profile: p, isNew: false, via: 'email' };
-    S.flowStart = S.flowStart || Date.now();
-    track('inbox.link_followed');
-    if (S.authTab && tabById(S.authTab)) activateTab(S.authTab);
-    else S.authTab = openTab('auth').id;
-    pvCode(p, { prefilled: true });
   },
   mailConfirm: (el) => {
     const p = profile(el.dataset.handle);
