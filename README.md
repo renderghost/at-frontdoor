@@ -34,18 +34,18 @@ The idea every scenario has to land: **one Atmosphere account works everywhere.*
 | 4 | Several accounts | Alex Moreno, three Atmosphere accounts | The browser account chooser (FedCM), then consent in a new tab that closes once Potluck is connected |
 | 5 | Has one, doesn't know it | Priya Shah, hosted by Bluesky | Sign-up that finds the existing account before a duplicate is made |
 
-The simulated browser has working tabs. Anything that would open separately in real life opens in a new tab: the inbox, a link in an email, and the provider's consent step after the browser chooser. A tab opened for signing in closes itself once sign-in is done, and Potluck's tab picks up the session. You can switch between tabs and close them; Potluck's own tab stays open because it runs the demo.
+The simulated browser has working tabs. Anything that would open separately in real life opens in a new tab: the inbox, a link in an email, the provider's consent step after the browser chooser, and the provider's account settings when Potluck links to them. A tab opened for signing in closes itself once sign-in is done, and Potluck's tab picks up the session. You can switch between tabs and close them; Potluck's own tab stays open because it runs the demo.
 
-The **Notes** panel explains each screen as you go: who owns it, which design principles it applies, a quote from the Phase 1 research, and the open decisions it touches. It also lists the measurement events an adopting app could count.
+The **Notes** panel explains each screen as you go: who owns it, which design principles it applies, a quote from the Phase 1 research, and the open decisions it touches. It follows the tab on show, and also lists the measurement events an adopting app could count.
 
 ## Who owns each screen
 
 | Owner | Screens | Shown as |
 | ----- | ------- | -------- |
-| App | Potluck's sign-in page and signed-in home | `potluck.kitchen` in the address bar |
+| App | Potluck's sign-in page, signed-in home and account settings | `potluck.kitchen` in the address bar |
 | Front Door | Find the account, existing-account check, choose a provider, email recovery | A sheet inside Potluck. The address doesn't change, because there's no extra server in the way |
 | Browser | Account chooser | A panel drawn by the browser, under the address bar |
-| Provider | Sign-in, sign-up, codes, consent | The provider's own address, such as `bsky.social` or `blacksky.app`. In Potluck's tab after a redirect, or in a new tab when opened from the browser chooser or an email |
+| Provider | Sign-in, sign-up, codes, consent, and sign-in and security settings | The provider's own address, such as `bsky.social` or `blacksky.app`. In Potluck's tab after a redirect, or in a new tab when opened from the browser chooser, an email or Potluck's settings |
 | Inbox | Recovery and welcome emails | A Mail notification, then a webmail tab at `mail.example.com` |
 
 ## Design positions taken
@@ -61,6 +61,17 @@ These are starting positions to test, not conclusions. The numbers refer to the 
 - **Consent (D8).** Framed as connecting the app to your Atmosphere account, with both shown and the provider named as its host. Permissions are in the app's words, each with a reason, and optional ones can be switched off. Accounts made for the app get a shorter summary.
 - **One Atmosphere account (D1, D3).** The account is always an Atmosphere account, on every screen and in every email. Providers are named as its host ("hosted by Bluesky"). This goes further than the decision log's "issuer and network" leaning, where providers named the account, so it needs testing with operators such as Blacksky.
 - **After sign-in.** The network is explained once people are in, not at the door.
+- **Account settings in the app (D11).** Potluck has its own account settings for what it owns: sharing, switching, signing out, disconnecting and its own data. Sign-in, security, moving and deleting the account belong to the provider, so those rows hand off to the provider's page. Potluck never shows whether there's a passkey or a password, because it can't know.
+
+## What an adopting app builds
+
+Signing in with Atmosphere means the app no longer owns credentials, but people still expect to manage their account from inside the app. An app like Potluck needs:
+
+- A signed-in account settings page.
+- A clearly labelled "managed by your provider" section, with links out to the provider for sign-in, security, moving and deleting the account.
+- Sign out, switch account, and disconnect for its own session.
+- A way to delete its own data, in line with App Store and EU rules.
+- The current handle and host, read fresh, not a stored copy.
 
 ## Look
 

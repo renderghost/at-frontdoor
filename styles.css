@@ -1833,6 +1833,251 @@ a {
   background: rgb(255 244 220 / 0.1);
 }
 
+/* Account settings: Potluck's own, with hand-offs to the provider */
+
+.pl-settings {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 24px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.pl-page-title {
+  font-family: var(--pl-display);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.set-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px;
+  border: 1px solid var(--pl-bark-line);
+  border-radius: var(--r-lg);
+  background: var(--pl-bark-raised);
+}
+
+/* Settings the provider owns: a dashed edge says "handled elsewhere" */
+.set-card-provider {
+  border: 1.5px dashed var(--pl-bark-line-strong);
+  background: transparent;
+}
+
+.set-heading {
+  font-family: var(--pl-display);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.set-provider-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.set-managed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 4px;
+  border: 1px solid var(--pl-bark-line-strong);
+  border-radius: var(--r-pill);
+  color: var(--pl-on-bark);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.set-note {
+  color: var(--pl-on-bark-soft);
+  font-size: 15px;
+}
+
+.set-who {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.set-who-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.set-name {
+  font-family: var(--pl-display);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.set-handle {
+  overflow-wrap: anywhere;
+}
+
+.set-host {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--pl-on-bark-soft);
+  font-size: 14px;
+}
+
+.set-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.set-row + .set-row {
+  border-top: 1px solid var(--pl-bark-line);
+}
+
+.set-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.set-text strong {
+  font-weight: 600;
+}
+
+.set-text > span {
+  color: var(--pl-on-bark-soft);
+  font-size: 14.5px;
+}
+
+.set-row .btn {
+  flex: none;
+}
+
+.potluck .link-btn {
+  text-decoration-color: var(--pl-yellow);
+}
+
+.potluck .link-btn:hover {
+  background: rgb(255 244 220 / 0.1);
+  text-decoration-color: var(--pl-on-bark);
+}
+
+/* Potluck's own switch, in its colours */
+.potluck .switch-ui {
+  background: var(--pl-bark);
+  border-color: var(--pl-on-bark-soft);
+}
+
+.potluck .switch-ui::after {
+  background: var(--pl-on-bark-soft);
+}
+
+.potluck .switch input:checked + .switch-ui {
+  background: var(--pl-yellow);
+  border-color: var(--pl-yellow);
+}
+
+.potluck .switch input:checked + .switch-ui::after {
+  background: var(--pl-bark);
+  box-shadow: none;
+}
+
+/* The provider's sign-in and security settings */
+
+.sec-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 16px;
+}
+
+/* The row Potluck linked to */
+.sec-row.is-target {
+  border-radius: var(--r-xs);
+  background: var(--link-50);
+  box-shadow: 0 0 0 8px var(--link-50);
+}
+
+.sec-heading {
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.sec-empty {
+  font-size: 14px;
+}
+
+.sec-list {
+  list-style: none;
+  align-self: stretch;
+  margin: 0;
+  padding: 0;
+}
+
+.sec-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.sec-row + .sec-row {
+  border-top: 1px solid var(--line);
+}
+
+.sec-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sec-text strong {
+  font-weight: 650;
+}
+
+.sec-text > span {
+  font-size: 13.5px;
+}
+
+.sec-status {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 650;
+  vertical-align: 1px;
+}
+
+.sec-status.is-on {
+  background: var(--accent-100);
+  border-color: var(--accent-700);
+}
+
 /* ---------- Front Door sheet ---------- */
 
 .sheet {
@@ -3325,6 +3570,20 @@ body[data-notes="closed"] .notes {
 
   .pl-home {
     padding: 20px 16px 48px;
+  }
+
+  .pl-settings {
+    padding: 20px 16px 48px;
+  }
+
+  .set-card {
+    padding: 18px 16px;
+  }
+
+  .set-row,
+  .sec-row {
+    flex-wrap: wrap;
+    gap: 8px 12px;
   }
 
   .banner {

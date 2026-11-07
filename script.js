@@ -120,7 +120,7 @@ const SCENARIOS = {
     tryThis: [
       'Press <strong>Continue with Atmosphere</strong>. The browser lists Alex’s Atmosphere accounts.',
       'Pick the cooking account, Alex Cooks. Its provider, Eurosky, asks for consent in a new tab, which closes once Potluck is connected.',
-      'Try the account menu afterwards to switch accounts.',
+      'Try the account menu afterwards: switch accounts, or open Account settings to see what Potluck manages and what Eurosky does.',
     ],
     data: [['Accounts', '3, remembered by the browser'], ['Password', 'not needed']],
   },
@@ -168,7 +168,8 @@ const JOURNEY = [
   { id: 'auth', label: 'Sign in or create the account', owner: 'provider' },
   { id: 'consent', label: 'Consent', owner: 'provider' },
   { id: 'back', label: 'Back in the app', owner: 'app' },
-  { id: 'manage', label: 'Manage the account (later)', owner: 'provider' },
+  { id: 'settings', label: 'Account settings in the app', owner: 'app' },
+  { id: 'manage', label: 'Sign-in and security at the provider', owner: 'provider' },
 ];
 
 // Notes for each screen: who owns it, what it shows, and what's still open.
@@ -291,10 +292,22 @@ const STEPS = {
   },
   'app.home': {
     title: 'Signed in', owner: 'app', journey: ['back'], event: 'app.home_shown',
-    what: 'Back in Potluck. Now, not at the door, is when the idea of one Atmosphere account gets explained. Account settings link out to the provider that hosts it.',
+    what: 'Back in Potluck. Now, not at the door, is when the idea of one Atmosphere account gets explained. The account menu leads to Potluck’s own account settings.',
     principles: ['recognition', 'issuer', 'measure'],
     quote: ['It is only after you get through the account creation when you’re walking through some of the onboarding steps that we have that we surface that there is such a thing as the atmosphere.', 'Rishi, Blacksky'],
-    open: 'D11: where managing, moving and deleting the account live, and how in-app deletion meets App Store and EU rules.',
+    open: 'D2: when the welcome can stop explaining the Atmosphere through Bluesky.',
+  },
+  'app.settings': {
+    title: 'Account settings', owner: 'app', journey: ['settings'], event: 'app.settings_shown',
+    what: 'Potluck’s own settings, with a clear line between what Potluck owns and what it doesn’t. Sharing, switching, signing out and disconnecting are Potluck’s. Sign-in, security, moving and deleting the account belong to the provider that hosts it, so those rows hand off to the provider. Potluck never sees them, so it never shows whether there’s a passkey or a password.',
+    principles: ['issuer', 'handshake'],
+    open: 'D11: where managing, moving and deleting the account live, and how in-app deletion meets App Store and EU rules. Is there a standard way to link to one section of the provider’s settings, and back?',
+  },
+  'pv.security': {
+    title: 'Sign-in and security', owner: 'provider', journey: ['manage'], event: 'provider.security_shown',
+    what: 'The provider’s own settings page, opened in a new tab from Potluck. Passkeys, the password, verification codes and the recovery email live here, and apply in every Atmosphere app. “Back to Potluck” closes the tab.',
+    principles: ['issuer', 'standard'],
+    open: 'Providers own this page. Which sections can an app link to directly?',
   },
 };
 
@@ -323,6 +336,7 @@ function freshState(id) {
     appTab: null, // Potluck's tab, where the demo starts
     authTab: null, // a provider tab opened for signing in
     mailTab: null, // the person's inbox
+    manageTab: null, // the provider's account settings, opened from Potluck
     mailOpen: null, // the email shown in the inbox
     flash: null,
     step: null,
@@ -518,6 +532,12 @@ function activateTab(id) {
     t.view.hidden = t.id !== id;
   });
   renderChrome();
+  // The notes follow the tab on show
+  const tab = currentTab();
+  if (S && tab.step && tab.step !== S.step) {
+    S.step = tab.step;
+    renderNotes();
+  }
 }
 
 function closeTab(id, { to } = {}) {
@@ -527,6 +547,7 @@ function closeTab(id, { to } = {}) {
   tab.view.remove();
   if (S.authTab === id) S.authTab = null;
   if (S.mailTab === id) S.mailTab = null;
+  if (S.manageTab === id) S.manageTab = null;
   if (activeTabId === id) activateTab(tabById(to) ? to : (tabs[index - 1] || tabs[0]).id);
   else renderChrome();
 }
@@ -635,6 +656,8 @@ function showSheet(markup) {
 function enter(stepId) {
   const step = STEPS[stepId];
   S.step = stepId;
+  const tab = currentTab();
+  if (tab) tab.step = stepId;
   if (S.flowStart) S.screens += 1;
   step.journey.forEach((j) => S.visited.add(j));
   if (step.event) track(step.event);
@@ -732,6 +755,7 @@ function appSignin({ quiet = false } = {}) {
   const flashMarkup = {
     cancelled: `<div class="notice notice-info">${icon('info')}<p>You didn’t connect your Atmosphere account, so you’re not signed in. Try again whenever you like.</p></div>`,
     signedOut: `<div class="notice notice-ok">${icon('circle-check')}<p>You’ve signed out. Next time, your browser can offer your Atmosphere account.</p></div>`,
+    disconnected: `<div class="notice notice-ok">${icon('circle-check')}<p>${APP.name} is disconnected from your Atmosphere account, and you’re signed out. Your recipes are still saved in your account. Next time, your provider will ask you to connect ${APP.name} again.</p></div>`,
   }[flash] || '';
 
   showPage(`
@@ -783,6 +807,7 @@ function accountMenu(p) {
             <span class="am-host">${providerTile(p.provider, 'xs')}<span>Hosted by ${esc(providerName(p))}</span></span>
           </span>
         </div>
+        <button class="am-item" type="button" data-action="openSettings">${icon('settings')}Account settings</button>
         <button class="am-item" type="button" data-action="switchAccount">${icon('users-round')}Switch account</button>
         <button class="am-item" type="button" data-action="manageAccount">${icon('external-link')}Manage account on ${esc(pv.name)}</button>
         <button class="am-item" type="button" data-action="signOut">${icon('log-out')}Sign out</button>
@@ -821,7 +846,7 @@ function appHome({ isNew = false } = {}) {
           <span class="banner-mark">${mark()}</span>
           <div class="banner-text">
             ${welcomeCopy(p, isNew)}
-            ${S.declinedPost ? `<p class="banner-note">${icon('info')}Sharing recipes to your followers is off. You can switch it on in Settings at any time.</p>` : ''}
+            ${S.declinedPost ? `<p class="banner-note">${icon('info')}<span>Sharing recipes to your followers is off. You can switch it on in <button type="button" class="link-btn" data-action="openSettings">Account settings</button> at any time.</span></p>` : ''}
           </div>
           <button class="btn btn-secondary btn-sm" type="button" data-action="dismissBanner">Got it</button>
         </section>
@@ -830,6 +855,117 @@ function appHome({ isNew = false } = {}) {
       </main>
     </div>`, { host: APP.domain, path: '/kitchen', title: 'Your kitchen · Potluck', favicon: appTile('xs') });
   enter('app.home');
+}
+
+function settingRow(title, text, control) {
+  return `<li class="set-row"><span class="set-text"><strong>${title}</strong><span>${text}</span></span>${control}</li>`;
+}
+
+// What the provider owns: each row hands off to the provider's own page.
+function handOff(p, section) {
+  return `<button class="btn btn-secondary btn-sm set-out" type="button" data-action="providerSettings" data-section="${section}">${icon('external-link')}<span>At ${esc(providerName(p))}</span></button>`;
+}
+
+function appSettings() {
+  goToAppTab();
+  const p = S.signedIn;
+  const pv = esc(providerName(p));
+  showPage(`
+    <div class="potluck">
+      ${potluckHeader(p)}
+      <main class="pl-settings">
+        <h1 class="pl-page-title">Account settings</h1>
+        <section class="set-card" aria-labelledby="set-account">
+          <h2 id="set-account" class="set-heading">Your Atmosphere account</h2>
+          <div class="set-who">${avatar(p, 'md')}<span class="set-who-text"><span class="set-name">${esc(p.name)}</span><span class="set-handle">@${esc(p.handle)}</span><span class="set-host">${providerTile(p.provider, 'xs')}<span>Hosted by ${pv}</span></span></span></div>
+          <p class="set-note">You sign in to ${APP.name} with this account. It also works in Bluesky and every other Atmosphere app.</p>
+        </section>
+        <section class="set-card" aria-labelledby="set-app">
+          <h2 id="set-app" class="set-heading">${APP.name}</h2>
+          <ul class="set-rows">
+            ${settingRow('Share recipes to your followers', `When you press Share, ${APP.name} posts the recipe to your Atmosphere account, so people who follow you on Bluesky and other apps can see it.`, `<label class="switch"><input type="checkbox" data-setting="share"${S.declinedPost ? '' : ' checked'}><span class="switch-ui" aria-hidden="true"></span><span class="sr-only">Share recipes to your followers</span></label>`)}
+            ${settingRow('Switch account', `Use another Atmosphere account with ${APP.name}.`, '<button class="btn btn-secondary btn-sm" type="button" data-action="switchAccount">Switch</button>')}
+            ${settingRow('Sign out', `Sign out of ${APP.name} on this device.`, '<button class="btn btn-secondary btn-sm" type="button" data-action="signOut">Sign out</button>')}
+            ${settingRow(`Disconnect ${APP.name}`, `${APP.name} stops using your Atmosphere account and signs you out. Recipes you saved stay in your account.`, '<button class="btn btn-secondary btn-sm" type="button" data-action="disconnectApp">Disconnect</button>')}
+            ${settingRow(`Delete your ${APP.name} data`, `Deletes what ${APP.name} keeps about you, such as your preferences. Your Atmosphere account stays with ${pv}.`, '<button class="btn btn-secondary btn-sm" type="button" data-action="noop">Delete</button>')}
+          </ul>
+        </section>
+        <section class="set-card set-card-provider" aria-labelledby="set-security">
+          <div class="set-provider-head">
+            <h2 id="set-security" class="set-heading">Sign-in and security</h2>
+            <span class="set-managed">${providerTile(p.provider, 'xs')}<span>Managed by ${pv}</span></span>
+          </div>
+          <p class="set-note">${pv} hosts your Atmosphere account, so these settings live there and apply in every Atmosphere app. ${APP.name} can’t see or change them.</p>
+          <ul class="set-rows">
+            ${settingRow('Passkeys', 'Sign in with your fingerprint, face or screen lock instead of a password.', handOff(p, 'passkeys'))}
+            ${settingRow('Password', 'Change the password for your Atmosphere account.', handOff(p, 'password'))}
+            ${settingRow('Verification codes', 'Ask for a code from an authenticator app after your password.', handOff(p, 'codes'))}
+            ${settingRow('Recovery email', `Where ${pv} sends a code if you can’t sign in.`, handOff(p, 'recovery'))}
+          </ul>
+        </section>
+        <section class="set-card set-card-provider" aria-labelledby="set-move">
+          <div class="set-provider-head">
+            <h2 id="set-move" class="set-heading">Move or delete your account</h2>
+            <span class="set-managed">${providerTile(p.provider, 'xs')}<span>Managed by ${pv}</span></span>
+          </div>
+          <ul class="set-rows">
+            ${settingRow('Move to another provider', 'Take your handle, posts and followers to another provider. It’s still the same Atmosphere account.', handOff(p, 'account'))}
+            ${settingRow('Delete your Atmosphere account', `This deletes it everywhere, in every Atmosphere app, not only ${APP.name}.`, handOff(p, 'account'))}
+          </ul>
+        </section>
+      </main>
+    </div>`, { host: APP.domain, path: '/settings', title: `Account settings · ${APP.name}`, favicon: appTile('xs') });
+  enter('app.settings');
+}
+
+// The provider's own page, in its own tab, as a link out of Potluck would open.
+function openProviderSettings(section) {
+  const p = S.signedIn;
+  track('app.provider_settings_opened', `${providerName(p)}${section ? `, ${section}` : ''}`);
+  if (S.manageTab && tabById(S.manageTab)) activateTab(S.manageTab);
+  else S.manageTab = openTab('manage').id;
+  pvSecurity(p, section);
+}
+
+function securityRow(id, title, text, control, status = '') {
+  return `<li class="sec-row" id="sec-${id}"><span class="sec-text"><strong>${title}${status}</strong><span>${text}</span></span>${control}</li>`;
+}
+
+const secStatus = (label, on = false) => ` <span class="sec-status${on ? ' is-on' : ''}">${label}</span>`;
+
+function pvSecurity(p, section) {
+  const pv = esc(providerName(p));
+  const notYet = (label) => `<button class="btn btn-secondary btn-sm" type="button" data-action="notInPrototype">${label}</button>`;
+  showProviderPage(p, '/account/security', 'Sign-in and security', `
+    <div class="acct-chip">${accountRow(p, { meta: false })}</div>
+    <h1 class="pv-title">Sign-in and security</h1>
+    <p class="pv-lede">${pv} hosts your Atmosphere account. These settings apply in every Atmosphere app you use.</p>
+    <section class="sec-block" aria-labelledby="sec-ways">
+      <h2 class="sec-heading" id="sec-ways">Ways to sign in</h2>
+      <ul class="sec-list">
+        ${securityRow('passkeys', 'Passkeys', 'Sign in with your fingerprint, face or screen lock instead of a password.', notYet('Add a passkey'), secStatus('None'))}
+        ${securityRow('password', 'Password', 'Use it with your handle in every Atmosphere app.', notYet('Change'), secStatus('Set', true))}
+        ${securityRow('codes', 'Verification codes', 'After your password, ask for a code from an authenticator app.', notYet('Turn on'), secStatus('Off'))}
+      </ul>
+    </section>
+    <section class="sec-block" aria-labelledby="sec-recovery-title">
+      <h2 class="sec-heading" id="sec-recovery-title">Recovery</h2>
+      <ul class="sec-list">${securityRow('recovery', 'Recovery email', `${esc(p.email ? maskEmail(p.email) : 'Not set')}. If you can’t sign in, ${pv} sends a code here.`, notYet('Change'))}</ul>
+    </section>
+    <section class="sec-block" aria-labelledby="sec-account-title">
+      <h2 class="sec-heading" id="sec-account-title">Your account</h2>
+      <ul class="sec-list">
+        ${securityRow('account', 'Move to another provider', 'Take your handle, posts and followers with you.', notYet('Move'))}
+        ${securityRow('delete', 'Delete your Atmosphere account', 'Deletes it in every Atmosphere app.', notYet('Delete'))}
+      </ul>
+    </section>
+    <button class="btn btn-secondary btn-block" type="button" data-action="backToApp">${icon('arrow-left')}<span>Back to ${APP.name}</span></button>`);
+  const target = section && q(`#sec-${section}`);
+  if (target) {
+    target.classList.add('is-target');
+    target.scrollIntoView({ block: 'nearest' });
+  }
+  enter('pv.security');
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1874,13 +2010,26 @@ const ACTIONS = {
     appSignin({ quiet: true });
     ACTIONS.atmosphereButton();
   },
-  manageAccount: () => {
-    const p = S.signedIn;
-    S.visited.add('manage');
-    track('app.manage_account_opened', providerName(p));
-    renderNotes();
-    toast(`This would open your account settings on ${hostFor(p)}. It isn’t part of this prototype.`, 'external-link');
+  openSettings: () => {
+    document.querySelector('.acct-menu[open]')?.removeAttribute('open');
+    appSettings();
   },
+  manageAccount: () => openProviderSettings(''),
+  providerSettings: (el) => openProviderSettings(el.dataset.section),
+  backToApp: () => {
+    track('provider.back_to_app');
+    if (S.manageTab) closeTab(S.manageTab, { to: S.appTab });
+    else goToAppTab();
+  },
+  disconnectApp: () => {
+    const p = S.signedIn;
+    track('app.disconnected', providerName(p));
+    S.approved.delete(p.handle);
+    S.signedIn = null;
+    S.flash = 'disconnected';
+    appSignin();
+  },
+  notInPrototype: () => toast('That part of the provider’s settings isn’t in this prototype.'),
   signOut: () => {
     track('app.signed_out');
     S.signedIn = null;
@@ -1970,6 +2119,13 @@ document.addEventListener('input', (e) => {
 
 document.addEventListener('change', (e) => {
   const t = e.target;
+  if (t.dataset.setting === 'share') {
+    const wasOff = S.declinedPost;
+    S.declinedPost = !t.checked;
+    track(t.checked ? 'app.sharing_on' : 'app.sharing_off');
+    if (t.checked && wasOff) toast(`You turned this down when you connected ${APP.name}, so ${providerName(S.signedIn)} would ask you to allow it first. That step isn’t in this prototype.`, 'shield-check');
+    return;
+  }
   if (t.name === 'provider' && t.closest('form[data-form="create"]')) {
     q('#other-server').hidden = t.value !== 'other';
     q('#create-submit').textContent = t.value === 'other' ? 'Continue with this provider' : `Continue with ${PROVIDERS[t.value].name}`;
