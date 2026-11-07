@@ -81,9 +81,9 @@ const SCENARIOS = {
     tryThis: [
       'Press <strong>Create an Atmosphere account</strong> (or <strong>Continue with Atmosphere</strong>, then “New here?”).',
       'Keep Potluck as the provider, or pick another one.',
-      'Use the browser’s saved email. Any password of 8 or more characters works.',
+      'Use the browser’s saved email, then choose a passkey or a password. Any password of 8 or more characters works.',
     ],
-    data: [['Email', 'jo.park@example.com'], ['Password', 'anything, 8+ characters']],
+    data: [['Email', 'jo.park@example.com'], ['Sign in with', 'a passkey, or any 8+ character password']],
   },
   returning: {
     n: 2,
@@ -265,10 +265,16 @@ const STEPS = {
   },
   'pv.signup': {
     title: 'Create the account at the provider', owner: 'provider', journey: ['auth'], event: 'provider.signup_shown',
-    what: 'The chosen provider creates the Atmosphere account, whether that’s Potluck’s own hosting or anyone else. The page says it’s an Atmosphere account that this provider hosts. Two fields. The confirmation email doesn’t block getting in.',
-    principles: ['issuer', 'noDuplicates'],
+    what: 'The chosen provider creates the Atmosphere account, whether that’s Potluck’s own hosting or anyone else. The page says it’s an Atmosphere account that this provider hosts. An email address, then a passkey or a password, side by side with neither picked for you. The email stays either way, because recovery codes go there. The confirmation email doesn’t block getting in.',
+    principles: ['issuer', 'noDuplicates', 'standard'],
     quote: ['even if you lose two or 3% of users, if you scale up, that’s a lot.', 'Holke, Hypercerts'],
-    open: 'Passkeys instead of passwords. Where age checks and terms belong.',
+    open: 'Should the passkey be picked by default, or the choice stay neutral, as here? Where age checks and terms belong.',
+  },
+  'browser.passkeyCreate': {
+    title: 'Create a passkey', owner: 'browser', journey: ['auth'], event: 'browser.passkey_create_shown',
+    what: 'The browser makes the passkey and saves it on this device, in its password manager. The provider never sees a fingerprint or a face, only a key that works for its own site.',
+    principles: ['standard'],
+    open: 'What happens on a device that can’t make passkeys? The password should look like a normal choice, not a fallback.',
   },
   'pv.handle': {
     title: 'Choose a handle', owner: 'provider', journey: ['auth'], event: 'provider.handle_shown',
@@ -344,6 +350,7 @@ function freshState(id) {
     codesOn: new Set(), // handles with verification codes switched on
     passkeyOnly: new Set(), // handles that sign in with a passkey only
     offered: new Set(), // handles offered a passkey after a password, this run
+    passwordless: new Set(), // handles made with a passkey and no password
     pk: null, // the browser's passkey prompt in progress
     promptReturn: null, // the screen to go back to when a browser prompt closes
     appTab: null, // Potluck's tab, where the demo starts
@@ -1065,6 +1072,16 @@ function passkeySignIn(p) {
     <div class="pk-actions"><button class="btn btn-secondary btn-sm" type="button" data-action="passkeyCancel" data-autofocus>Cancel</button></div>`, 'browser.passkey');
 }
 
+// Creating: the browser makes a passkey for the provider's site.
+function passkeyCreate({ host, label, onDone, onCancel }) {
+  S.pk = { mode: 'create', onDone, onCancel };
+  showBrowserPrompt(`
+    ${pkHead(`Create a passkey for ${esc(host)}`, esc(label))}
+    <div class="pk-body"><p>Your browser saves this passkey on this device. You’ll sign in to ${esc(host)} with your fingerprint, face or screen lock instead of a password.</p></div>
+    <div class="pk-actions"><button class="btn btn-secondary btn-sm" type="button" data-action="passkeyCancel">Cancel</button><button class="btn btn-primary btn-sm" type="button" data-action="passkeyConfirm" data-autofocus>Continue</button></div>
+    <p class="fedcm-fine">A passkey only works on ${esc(host)}, so a lookalike site can’t use it.</p>`, 'browser.passkeyCreate');
+}
+
 function passkeyOtherDevice() {
   track('browser.passkey_other_device');
   const host = esc(hostFor(S.pk.p));
@@ -1542,7 +1559,7 @@ function welcomeMail(p) {
     preview: 'One tap to confirm. You can keep using Potluck in the meantime.',
     body: `
       <p>Hi ${esc(first(p.name))},</p>
-      <p>Your Atmosphere account is ready, and ${esc(pv.name)} is hosting it. Please confirm this is your email address, so you can get back into your account if you ever forget your password.</p>
+      <p>Your Atmosphere account is ready, and ${esc(pv.name)} is hosting it. Please confirm this is your email address, so you can get back into your account if you ever can’t sign in.</p>
       <p><button class="btn btn-primary" type="button" data-action="mailConfirm" data-handle="${p.handle}">Confirm my email address</button></p>
       <dl class="mail-facts"><div><dt>Your handle</dt><dd>@${esc(p.handle)}</dd></div></dl>
       <p>Your Atmosphere account works on Potluck, Bluesky and every other Atmosphere app. Keep this email: it’s an easy place to find your handle later.</p>
@@ -1789,7 +1806,26 @@ function pvSignup(pid) {
         ${persona.email ? autofillButton('signup-email', persona.email, 'Saved in this browser', 'key-round') : ''}
         <div id="signup-email-msg" class="field-msg" aria-live="polite"></div>
       </div>
-      <div class="field">
+      <fieldset class="field">
+        <legend>How do you want to sign in?</legend>
+        <div class="provider-list method-list">
+          <label class="provider-opt">
+            <input type="radio" name="method" value="passkey">
+            <span class="tile tile-sm" aria-hidden="true">${icon('key-round')}</span>
+            <span class="po-text"><span class="po-name">Passkey</span><span class="po-blurb">Use your fingerprint, face or screen lock. Nothing to remember.</span></span>
+            <span class="po-check" aria-hidden="true">${icon('check')}</span>
+          </label>
+          <label class="provider-opt">
+            <input type="radio" name="method" value="password">
+            <span class="tile tile-sm" aria-hidden="true">${icon('rectangle-ellipsis')}</span>
+            <span class="po-text"><span class="po-name">Password</span><span class="po-blurb">Choose a password of at least 8 characters.</span></span>
+            <span class="po-check" aria-hidden="true">${icon('check')}</span>
+          </label>
+        </div>
+        <div id="method-msg" class="field-msg" aria-live="polite"></div>
+      </fieldset>
+      <p class="hint" id="passkey-note" hidden>Your browser saves the passkey on this device. It works with ${esc(pv.name)} in every Atmosphere app.</p>
+      <div class="field" id="password-field" hidden>
         <label for="new-password">Password</label>
         ${passwordInput('new-password', 'new-password')}
         <p class="hint">At least 8 characters.</p>
@@ -1805,20 +1841,41 @@ function pvSignup(pid) {
 
 function submitSignup(form) {
   const email = $('#signup-email', form).value.trim();
+  const method = form.querySelector('input[name="method"]:checked')?.value;
   const password = $('#new-password', form).value;
   fieldMsg('signup-email', 'error', '');
+  fieldMsg('method', 'error', '');
   fieldMsg('new-password', 'error', '');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     fieldMsg('signup-email', 'error', 'Enter an email address, like name@example.com. You’ll use it if you ever need to get back into your account.');
     return;
   }
-  if (password.length < 8) {
-    fieldMsg('new-password', 'error', 'Use at least 8 characters.');
+  if (!method) {
+    fieldMsg('method', 'error', 'Choose a passkey or a password.');
     return;
   }
   S.draft.email = email;
-  track('provider.signup_details_entered');
-  pvHandle();
+  if (method === 'password') {
+    if (password.length < 8) {
+      fieldMsg('new-password', 'error', 'Use at least 8 characters.');
+      return;
+    }
+    S.draft.passkey = false;
+    track('provider.signup_details_entered', 'password');
+    pvHandle();
+    return;
+  }
+  track('provider.signup_details_entered', 'passkey');
+  passkeyCreate({
+    host: PROVIDERS[S.draft.provider].host,
+    label: email,
+    onDone: () => {
+      S.draft.passkey = true;
+      track('provider.passkey_created');
+      pvHandle();
+    },
+    onCancel: () => fieldMsg('method', 'info', 'No passkey was made. Try again, or choose a password.'),
+  });
 }
 
 function normaliseHandle(raw, suffix) {
@@ -1897,6 +1954,10 @@ function submitHandle(form) {
   const name = $('#display-name', form).value.trim() || personaFor(SCENARIOS[S.scenario]).name;
   const p = { name, handle: `${normaliseHandle($('#new-handle', form).value, suffix)}.${suffix}`, provider: pid, email: S.draft.email };
   S.created.push(p);
+  if (S.draft.passkey) {
+    savePasskey(p.handle);
+    S.passwordless.add(p.handle);
+  } else track('provider.password_set');
   S.pending = { profile: p, isNew: true, via: 'redirect' };
   S.flowStart = S.flowStart || Date.now();
   track('provider.account_created', PROVIDERS[pid].name);
@@ -2269,6 +2330,13 @@ document.addEventListener('input', (e) => {
 
 document.addEventListener('change', (e) => {
   const t = e.target;
+  if (t.name === 'method' && t.closest('form[data-form="signup"]')) {
+    q('#password-field').hidden = t.value !== 'password';
+    q('#passkey-note').hidden = t.value !== 'passkey';
+    fieldMsg('method', 'error', '');
+    if (t.value === 'password') q('#new-password').focus();
+    return;
+  }
   if (t.name === 'vary-passkey' && S.pending) {
     const h = S.pending.profile.handle;
     if (t.value === 'none') S.passkeys.delete(h);
