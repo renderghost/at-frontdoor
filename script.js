@@ -92,10 +92,10 @@ const SCENARIOS = {
     browserAccounts: [],
     situation: 'Sam uses Bluesky every day, so Sam already has an Atmosphere account, hosted by Bluesky. Sam knows the handle and password, but this is a new laptop, so the browser doesn’t know Sam yet.',
     tryThis: [
-      'Press <strong>Continue with Atmosphere</strong>.',
-      'Type <code>sam</code>, <code>@sam.bsky.social</code>, <code>sam@bsky.social</code> or <code>sam.bsky.app</code> and see what Front Door makes of it.',
-      'On Bluesky’s sign-in page, try a variation in these notes: a passkey saved on this device, one only on a lost phone, or verification codes switched on.',
-      'Afterwards, sign out and sign in again. The browser now offers Sam’s Atmosphere account.',
+      'Press <strong>Continue with Atmosphere</strong>. Type <code>sam</code>, <code>@sam.bsky.social</code>, <code>sam@bsky.social</code> or <code>sam.bsky.app</code> and see what Front Door makes of it.',
+      'Sign in with any password. Bluesky then offers a passkey for next time.',
+      'On Bluesky’s sign-in page, try a variation in these notes: a passkey saved on this device, one only on a lost phone, verification codes, or passkey only.',
+      'Afterwards, open <strong>Account settings</strong> from the account menu, or sign out and sign in again: the browser now offers Sam’s Atmosphere account.',
     ],
     data: [['Handle', 'sam.bsky.social'], ['Password', 'anything']],
   },
@@ -264,10 +264,16 @@ const STEPS = {
     open: 'Should providers offer code sign-in all the time, not only for recovery?',
   },
   'pv.newPassword': {
-    title: 'New password, optional', owner: 'provider', journey: ['auth'], event: 'provider.password_offered',
-    what: 'The person is already signed in. A new password is offered, not forced, so getting into Potluck isn’t held up.',
-    principles: ['forgive'],
-    open: 'Offer a passkey here instead of a password (Eli, Streamplace).',
+    title: 'How to sign in next time', owner: 'provider', journey: ['auth'], event: 'provider.signin_method_offered',
+    what: 'The person is already signed in with the emailed code. A passkey is offered first, as Eli at Streamplace suggested, and a new password is still there. Neither is forced, so getting into Potluck isn’t held up. A passkey left on a lost phone can be removed here.',
+    principles: ['forgive', 'standard'],
+    open: 'Should a lost passkey be removed here, or only in Sign-in and security?',
+  },
+  'pv.passkeyOffer': {
+    title: 'Offer a passkey', owner: 'provider', journey: ['auth'], event: 'provider.passkey_offered',
+    what: 'After a password sign-in, the provider offers a passkey for next time, once, with a clear “Not now”, so it doesn’t stand between people and Potluck. Next time, the browser offers the passkey on the sign-in page.',
+    principles: ['standard', 'forgive'],
+    open: 'How often should the offer come back after “Not now”?',
   },
   'pv.signup': {
     title: 'Create the account at the provider', owner: 'provider', journey: ['auth'], event: 'provider.signup_shown',
@@ -324,9 +330,9 @@ const STEPS = {
   },
   'pv.security': {
     title: 'Sign-in and security', owner: 'provider', journey: ['manage'], event: 'provider.security_shown',
-    what: 'The provider’s own settings page, opened in a new tab from Potluck. Passkeys, the password, verification codes and the recovery email live here, and apply in every Atmosphere app. “Back to Potluck” closes the tab.',
+    what: 'The provider’s own settings page, opened in a new tab from Potluck. Passkeys, the password, verification codes and the recovery email live here, and apply in every Atmosphere app. “Passkey only” switches off the password and codes, so a phishing page has nothing to ask for. “Back to Potluck” closes the tab.',
     principles: ['issuer', 'standard'],
-    open: 'Providers own this page. Which sections can an app link to directly?',
+    open: 'Providers own this page. Which sections can an app link to directly? With “Passkey only” on, an emailed code would undo it, so what should recovery look like: a waiting period, or saved recovery codes?',
   },
 };
 
@@ -763,6 +769,7 @@ function varyMarkup(kind) {
       <p class="vary-label">A passkey for @${esc(p.handle)}</p>
       ${opt('none', 'None yet')}${opt('here', 'Saved on this device')}${opt('away', 'Only on a lost phone')}
       <label class="vary-opt vary-check"><input type="checkbox" data-vary="codes"${S.codesOn.has(p.handle) ? ' checked' : ''}><span>Verification codes switched on</span></label>
+      <label class="vary-opt"><input type="checkbox" data-vary="only"${S.passkeyOnly.has(p.handle) ? ' checked' : ''}><span>Passkey only switched on</span></label>
     </div>`;
 }
 
@@ -988,8 +995,17 @@ const secStatus = (label, on = false) => ` <span class="sec-status${on ? ' is-on
 
 function pvSecurity(p, section, { quiet = false } = {}) {
   const pv = esc(providerName(p));
-  const codesOn = S.codesOn.has(p.handle);
+  const h = p.handle;
+  const codesOn = S.codesOn.has(h);
+  const only = S.passkeyOnly.has(h);
+  const keys = passkeysFor(h);
+  const hasPassword = !S.passwordless.has(h);
   const notYet = (label) => `<button class="btn btn-secondary btn-sm" type="button" data-action="notInPrototype">${label}</button>`;
+  const btn = (action, label) => `<button class="btn btn-secondary btn-sm" type="button" data-action="${action}">${label}</button>`;
+  const keyList = keys.length
+    ? `<ul class="pk-list">${keys.map((k, i) => `<li>${icon(/phone/i.test(k.device) ? 'smartphone' : 'laptop')}<span class="pk-list-text"><strong>${esc(k.device)}</strong><span>${k.here ? 'On this device' : 'On another device'}</span></span><button class="link-btn" type="button" data-action="removePasskey" data-index="${i}">Remove</button></li>`).join('')}</ul>`
+    : '';
+  const offNote = 'Switched off while passkey only is on.';
   showProviderPage(p, '/account/security', 'Sign-in and security', `
     <div class="acct-chip">${accountRow(p, { meta: false })}</div>
     <h1 class="pv-title">Sign-in and security</h1>
@@ -997,9 +1013,14 @@ function pvSecurity(p, section, { quiet = false } = {}) {
     <section class="sec-block" aria-labelledby="sec-ways">
       <h2 class="sec-heading" id="sec-ways">Ways to sign in</h2>
       <ul class="sec-list">
-        ${securityRow('passkeys', 'Passkeys', 'Sign in with your fingerprint, face or screen lock instead of a password.', notYet('Add a passkey'), secStatus('None'))}
-        ${securityRow('password', 'Password', 'Use it with your handle in every Atmosphere app.', notYet('Change'), secStatus('Set', true))}
-        ${securityRow('codes', 'Verification codes', 'After your password, ask for a code from an authenticator app.', `<button class="btn btn-secondary btn-sm" type="button" data-action="toggleCodes">${codesOn ? 'Turn off' : 'Turn on'}</button>`, codesOn ? secStatus('On', true) : secStatus('Off'))}
+        <li class="sec-row sec-row-stack" id="sec-passkeys">
+          <span class="sec-text"><strong>Passkeys${secStatus(keys.length ? String(keys.length) : 'None', keys.length > 0)}</strong><span>Sign in with your fingerprint, face or screen lock instead of a password. A passkey only works on ${esc(hostFor(p))}, so it can’t be phished.</span></span>
+          ${btn('securityAddPasskey', 'Add a passkey')}
+          ${keyList}
+        </li>
+        ${securityRow('password', 'Password', only ? offNote : hasPassword ? 'Use it with your handle in every Atmosphere app.' : 'This account was made with a passkey and has no password.', only ? '' : notYet(hasPassword ? 'Change' : 'Set a password'), only ? secStatus('Off') : hasPassword ? secStatus('Set', true) : secStatus('Not set'))}
+        ${securityRow('codes', 'Verification codes', only ? offNote : 'After your password, ask for a code from an authenticator app.', only || !hasPassword ? '' : btn('toggleCodes', codesOn ? 'Turn off' : 'Turn on'), codesOn && !only ? secStatus('On', true) : secStatus('Off'))}
+        ${securityRow('only', 'Passkey only', only ? 'Your password and codes are switched off, so only a passkey can sign in.' : keys.length ? 'Switch off your password and codes, so only a passkey can sign in. You’ll need a passkey on every device you use.' : 'Add a passkey first. Then you can switch off your password and codes.', keys.length ? btn('togglePasskeyOnly', only ? 'Turn off' : 'Turn on') : '', only ? secStatus('On', true) : secStatus('Off'))}
       </ul>
     </section>
     <section class="sec-block" aria-labelledby="sec-recovery-title">
@@ -1737,6 +1758,11 @@ function submitSignin(form) {
     return;
   }
   const p = S.pending.profile;
+  if (S.passkeyOnly.has(p.handle)) {
+    track('provider.password_refused', 'passkey only');
+    fieldMsg('current-password', 'error', `This account signs in with a passkey only. Use a passkey, or <button type="button" class="link-btn" data-action="forgotPassword">get a code by email</button> if you can’t.`);
+    return;
+  }
   track('provider.password_accepted');
   busy(form.querySelector('[type="submit"]'), 'Signing in…');
   later(() => (S.codesOn.has(p.handle) ? pvTotp(p) : afterPassword(p)), 700);
@@ -1745,7 +1771,37 @@ function submitSignin(form) {
 // Signed in with a password (and a code, where that's on).
 function afterPassword(p) {
   track('provider.signed_in', 'password');
-  pvConsent(p);
+  if (!passkeyHere(p.handle) && !S.offered.has(p.handle)) pvPasskeyOffer(p);
+  else pvConsent(p);
+}
+
+function pvPasskeyOffer(p) {
+  S.offered.add(p.handle);
+  const pv = esc(providerName(p));
+  showProviderPage(p, '/account/passkey', 'Sign in faster', `
+    <div class="notice notice-ok">${icon('circle-check')}<p>You’re signed in to your Atmosphere account, <strong>@${esc(p.handle)}</strong>.</p></div>
+    <span class="sheet-hero">${icon('key-round')}</span>
+    <h1 class="pv-title">Sign in faster next time?</h1>
+    <p class="pv-lede">Add a passkey, and next time you can sign in with your fingerprint, face or screen lock instead of your password. A passkey can’t be phished.</p>
+    <p class="fine">Your browser saves it on this device. It works with ${pv} in every Atmosphere app.</p>
+    <div class="btn-row">
+      <button class="btn btn-secondary" type="button" data-action="passkeyOfferSkip">Not now</button>
+      <button class="btn btn-primary" type="button" data-action="passkeyOfferAdd">Add a passkey</button>
+    </div>`);
+  enter('pv.passkeyOffer');
+}
+
+// The browser makes a passkey for a signed-in account, then the page moves on.
+function addPasskeyFor(p, where, next) {
+  passkeyCreate({
+    host: hostFor(p),
+    label: `@${p.handle}`,
+    onDone: () => {
+      savePasskey(p.handle);
+      track('provider.passkey_added', where);
+      next();
+    },
+  });
 }
 
 function pvTotp(p) {
@@ -1820,11 +1876,15 @@ function submitCode(form) {
 
 function pvNewPassword(p) {
   const pv = PROVIDERS[p.provider];
-  showProviderPage(p, '/account/password', 'New password', `
+  const lost = passkeysFor(p.handle).filter((k) => !k.here);
+  showProviderPage(p, '/account/password', 'Sign in next time', `
     <div class="notice notice-ok">${icon('circle-check')}<p>You’re signed in to your Atmosphere account, <strong>@${esc(p.handle)}</strong>.</p></div>
-    <h1 class="pv-title">Set a new password?</h1>
-    <p class="pv-lede">You’ll need it next time you sign in. You can also do this later in your account settings on ${esc(pv.name)}.</p>
-    <form class="form" data-form="newPassword" novalidate>
+    <h1 class="pv-title">How do you want to sign in next time?</h1>
+    <p class="pv-lede">Add a passkey, or set a new password. You can also do this later in your account settings on ${esc(pv.name)}.</p>
+    ${lost.length ? `<div class="notice notice-info" id="lost-passkeys">${icon('smartphone')}<p>Your passkey on <strong>${esc(lost.map((k) => k.device).join(', '))}</strong> still works on that device. If it’s lost, remove it so nobody else can use it. <button type="button" class="link-btn" data-action="removeLostPasskeys">Remove it</button></p></div>` : ''}
+    <button class="btn btn-primary btn-block" type="button" data-action="recoveryAddPasskey">${icon('key-round')}<span>Add a passkey</span></button>
+    <button type="button" class="disclosure" data-action="toggleNewPassword" aria-expanded="false" aria-controls="new-password-form">Set a new password instead${icon('chevron-down')}</button>
+    <form class="form" data-form="newPassword" id="new-password-form" novalidate hidden>
       <input class="sr-only" type="text" name="username" autocomplete="username" value="${esc(p.handle)}" readonly tabindex="-1" aria-hidden="true">
       <div class="field">
         <label for="reset-password">New password</label>
@@ -1832,11 +1892,9 @@ function pvNewPassword(p) {
         <p class="proto-hint">Any password works. Please don’t type a real one.</p>
         <div id="reset-password-msg" class="field-msg" aria-live="polite"></div>
       </div>
-      <div class="btn-row">
-        <button class="btn btn-secondary" type="button" data-action="skipPassword">Not now</button>
-        <button class="btn btn-primary" type="submit">Save password</button>
-      </div>
-    </form>`);
+      <button class="btn btn-secondary btn-block" type="submit">Save password</button>
+    </form>
+    <p class="pv-alt"><button class="link-btn" type="button" data-action="skipPassword">Not now</button></p>`);
   enter('pv.newPassword');
 }
 
@@ -2290,6 +2348,65 @@ const ACTIONS = {
     appSignin();
   },
   notInPrototype: () => toast('That part of the provider’s settings isn’t in this prototype.'),
+  passkeyOfferAdd: () => {
+    const p = S.pending.profile;
+    addPasskeyFor(p, 'after sign-in', () => {
+      toast('Passkey saved. Next time, the browser offers it on the sign-in page.', 'key-round');
+      pvConsent(p);
+    });
+  },
+  passkeyOfferSkip: () => {
+    track('provider.passkey_declined');
+    pvConsent(S.pending.profile);
+  },
+  recoveryAddPasskey: () => {
+    const p = S.pending.profile;
+    addPasskeyFor(p, 'after recovery', () => {
+      toast('Passkey saved. Next time, sign in with it instead of a password.', 'key-round');
+      pvConsent(p);
+    });
+  },
+  toggleNewPassword: (el) => {
+    const open = el.getAttribute('aria-expanded') !== 'true';
+    el.setAttribute('aria-expanded', String(open));
+    q('#new-password-form').hidden = !open;
+    if (open) q('#reset-password').focus();
+  },
+  removeLostPasskeys: () => {
+    const p = S.pending.profile;
+    S.passkeys.set(p.handle, passkeysFor(p.handle).filter((k) => k.here));
+    track('provider.passkey_removed', 'lost device');
+    q('#lost-passkeys').innerHTML = `${icon('circle-check')}<p>Removed. That passkey no longer works.</p>`;
+    q('#lost-passkeys').className = 'notice notice-ok';
+    paintIcons();
+  },
+  securityAddPasskey: () => {
+    const p = S.signedIn;
+    // Browsers refuse a second passkey for the same account on one device.
+    if (passkeyHere(p.handle)) {
+      toast('This device already has a passkey for this account. To add another, open this page on your other phone or computer.', 'key-round');
+      return;
+    }
+    addPasskeyFor(p, 'settings', () => pvSecurity(p, 'passkeys', { quiet: true }));
+  },
+  removePasskey: (el) => {
+    const p = S.signedIn;
+    const keys = passkeysFor(p.handle).filter((_, i) => i !== Number(el.dataset.index));
+    if (keys.length) S.passkeys.set(p.handle, keys);
+    else S.passkeys.delete(p.handle);
+    track('provider.passkey_removed');
+    if (!keys.length && S.passkeyOnly.delete(p.handle)) toast('Passkey only is off, because there are no passkeys left.', 'info');
+    pvSecurity(p, 'passkeys', { quiet: true });
+  },
+  togglePasskeyOnly: () => {
+    const p = S.signedIn;
+    const on = !S.passkeyOnly.has(p.handle);
+    if (on) S.passkeyOnly.add(p.handle);
+    else S.passkeyOnly.delete(p.handle);
+    track(on ? 'provider.passkey_only_on' : 'provider.passkey_only_off');
+    pvSecurity(p, 'only', { quiet: true });
+    toast(on ? 'Passkey only is on. Your password and codes no longer work.' : 'Passkey only is off. Your password works again.', 'shield-check');
+  },
   toggleCodes: () => {
     const p = S.signedIn;
     const on = !S.codesOn.has(p.handle);
@@ -2321,6 +2438,7 @@ const FORMS = {
       return;
     }
     track('provider.password_changed');
+    S.passwordless.delete(S.pending.profile.handle);
     pvConsent(S.pending.profile);
   },
   signup: submitSignup,
@@ -2396,10 +2514,11 @@ document.addEventListener('change', (e) => {
     if (t.value === 'password') q('#new-password').focus();
     return;
   }
-  if (t.dataset.vary === 'codes' && S.pending) {
+  if (t.dataset.vary && S.pending) {
+    const set = t.dataset.vary === 'codes' ? S.codesOn : S.passkeyOnly;
     const h = S.pending.profile.handle;
-    if (t.checked) S.codesOn.add(h);
-    else S.codesOn.delete(h);
+    if (t.checked) set.add(h);
+    else set.delete(h);
     return;
   }
   if (t.name === 'vary-passkey' && S.pending) {
