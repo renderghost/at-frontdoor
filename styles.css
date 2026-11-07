@@ -3399,6 +3399,12 @@ body[data-notes="closed"] .notes {
   accent-color: var(--bp-blue);
 }
 
+.vary-check {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--bp-grid-major);
+}
+
 .demo-data {
   display: grid;
   grid-template-columns: auto 1fr;

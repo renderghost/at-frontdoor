@@ -94,7 +94,7 @@ const SCENARIOS = {
     tryThis: [
       'Press <strong>Continue with Atmosphere</strong>.',
       'Type <code>sam</code>, <code>@sam.bsky.social</code>, <code>sam@bsky.social</code> or <code>sam.bsky.app</code> and see what Front Door makes of it.',
-      'On Bluesky’s sign-in page, try a variation in these notes: no passkey, one saved on this device, or one only on a lost phone. Then press <strong>Use a passkey</strong>.',
+      'On Bluesky’s sign-in page, try a variation in these notes: a passkey saved on this device, one only on a lost phone, or verification codes switched on.',
       'Afterwards, sign out and sign in again. The browser now offers Sam’s Atmosphere account.',
     ],
     data: [['Handle', 'sam.bsky.social'], ['Password', 'anything']],
@@ -244,6 +244,12 @@ const STEPS = {
     quote: ['especially because now it redirects to something that looks like it’s owned by Bluesky.', 'Pouria, Semble'],
     open: 'Providers own this page. This layout is what we’d propose to the reference PDS and Bluesky’s entryway (D8). A discoverable passkey could make typing the handle unnecessary, but Front Door still needs the handle to know which provider to send people to.',
   },
+  'pv.totp': {
+    title: 'Verification code', owner: 'provider', journey: ['auth'], event: 'provider.code_step_shown',
+    what: 'For accounts with verification codes switched on, the provider asks for a code from an authenticator app after the password. It’s the universal second step and it helps, but a phishing page can still relay a password and a code while they’re fresh. A passkey can’t be relayed, so this page offers one where this device has it.',
+    principles: ['standard'],
+    open: 'Authenticator apps only, or text messages too? Text messages are the weakest source, so the prototype leaves them out.',
+  },
   'browser.passkey': {
     title: 'Sign in with a passkey', owner: 'browser', journey: ['auth'], event: 'browser.passkey_prompt_shown',
     what: 'The browser, not the provider’s page, asks for the passkey, and it only offers passkeys saved for this exact site. That’s why a passkey can’t be phished: a lookalike page gets nothing to relay. The device’s fingerprint, face or screen lock unlocks it. With no passkey on this device, the browser offers one on a phone or tablet nearby.',
@@ -345,6 +351,7 @@ function freshState(id) {
     pending: null, // { profile, isNew, via } while a sign-in is in progress
     draft: {},
     code: null,
+    totp: null, // the code an authenticator app would show
     declinedPost: false,
     passkeys: new Map(), // handle -> passkeys held at the provider: [{ device, here }]
     codesOn: new Set(), // handles with verification codes switched on
@@ -755,6 +762,7 @@ function varyMarkup(kind) {
       <p class="ns-sub" id="vary-title">Try a variation</p>
       <p class="vary-label">A passkey for @${esc(p.handle)}</p>
       ${opt('none', 'None yet')}${opt('here', 'Saved on this device')}${opt('away', 'Only on a lost phone')}
+      <label class="vary-opt vary-check"><input type="checkbox" data-vary="codes"${S.codesOn.has(p.handle) ? ' checked' : ''}><span>Verification codes switched on</span></label>
     </div>`;
 }
 
@@ -978,8 +986,9 @@ function securityRow(id, title, text, control, status = '') {
 
 const secStatus = (label, on = false) => ` <span class="sec-status${on ? ' is-on' : ''}">${label}</span>`;
 
-function pvSecurity(p, section) {
+function pvSecurity(p, section, { quiet = false } = {}) {
   const pv = esc(providerName(p));
+  const codesOn = S.codesOn.has(p.handle);
   const notYet = (label) => `<button class="btn btn-secondary btn-sm" type="button" data-action="notInPrototype">${label}</button>`;
   showProviderPage(p, '/account/security', 'Sign-in and security', `
     <div class="acct-chip">${accountRow(p, { meta: false })}</div>
@@ -990,7 +999,7 @@ function pvSecurity(p, section) {
       <ul class="sec-list">
         ${securityRow('passkeys', 'Passkeys', 'Sign in with your fingerprint, face or screen lock instead of a password.', notYet('Add a passkey'), secStatus('None'))}
         ${securityRow('password', 'Password', 'Use it with your handle in every Atmosphere app.', notYet('Change'), secStatus('Set', true))}
-        ${securityRow('codes', 'Verification codes', 'After your password, ask for a code from an authenticator app.', notYet('Turn on'), secStatus('Off'))}
+        ${securityRow('codes', 'Verification codes', 'After your password, ask for a code from an authenticator app.', `<button class="btn btn-secondary btn-sm" type="button" data-action="toggleCodes">${codesOn ? 'Turn off' : 'Turn on'}</button>`, codesOn ? secStatus('On', true) : secStatus('Off'))}
       </ul>
     </section>
     <section class="sec-block" aria-labelledby="sec-recovery-title">
@@ -1010,7 +1019,8 @@ function pvSecurity(p, section) {
     target.classList.add('is-target');
     target.scrollIntoView({ block: 'nearest' });
   }
-  enter('pv.security');
+  if (quiet) renderNotes();
+  else enter('pv.security');
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1726,9 +1736,48 @@ function submitSignin(form) {
     fieldMsg('current-password', 'error', 'Type your password, or choose “Forgot password?”.');
     return;
   }
-  track('provider.signed_in');
+  const p = S.pending.profile;
+  track('provider.password_accepted');
   busy(form.querySelector('[type="submit"]'), 'Signing in…');
-  later(() => pvConsent(S.pending.profile), 700);
+  later(() => (S.codesOn.has(p.handle) ? pvTotp(p) : afterPassword(p)), 700);
+}
+
+// Signed in with a password (and a code, where that's on).
+function afterPassword(p) {
+  track('provider.signed_in', 'password');
+  pvConsent(p);
+}
+
+function pvTotp(p) {
+  S.totp = newCode();
+  showProviderPage(p, '/oauth/authorize/code', 'Verification code', `
+    ${handshake({ provider: p.provider })}
+    <h1 class="pv-title">Enter the code from your authenticator app</h1>
+    <p class="pv-lede">Open the app you set up for <strong>@${esc(p.handle)}</strong> and type the 6-digit code it shows.</p>
+    <form class="form" data-form="totp" novalidate>
+      <div class="field">
+        <label for="totp">Code</label>
+        <input id="totp" name="totp" type="text" class="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required aria-describedby="totp-msg" data-autofocus>
+        ${autofillButton('totp', formatCode(S.totp), 'From Passwords', 'key-round')}
+        <p class="proto-hint">Any 6 digits work.</p>
+        <div id="totp-msg" class="field-msg" aria-live="polite"></div>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit">Continue</button>
+    </form>
+    ${passkeyHere(p.handle) ? `<button class="btn btn-secondary btn-block" type="button" data-action="usePasskey">${icon('key-round')}<span>Use a passkey instead</span></button>` : ''}
+    <p class="pv-alt">Lost your phone? <button class="link-btn" type="button" data-action="forgotPassword">Get a code by email</button></p>`);
+  enter('pv.totp');
+}
+
+function submitTotp(form) {
+  const digits = $('#totp', form).value.replace(/\D/g, '');
+  if (digits.length !== 6) {
+    fieldMsg('totp', 'error', 'Type the 6-digit code from your authenticator app.');
+    return;
+  }
+  track('provider.verification_code_accepted');
+  busy(form.querySelector('[type="submit"]'), 'Checking…');
+  later(() => afterPassword(S.pending.profile), 600);
 }
 
 function forgotPassword() {
@@ -2241,6 +2290,15 @@ const ACTIONS = {
     appSignin();
   },
   notInPrototype: () => toast('That part of the provider’s settings isn’t in this prototype.'),
+  toggleCodes: () => {
+    const p = S.signedIn;
+    const on = !S.codesOn.has(p.handle);
+    if (on) S.codesOn.add(p.handle);
+    else S.codesOn.delete(p.handle);
+    track(on ? 'provider.codes_on' : 'provider.codes_off');
+    pvSecurity(p, 'codes', { quiet: true });
+    toast(on ? 'Verification codes are on. In real life you’d scan a code into your authenticator app first.' : 'Verification codes are off.', 'shield-check');
+  },
   signOut: () => {
     track('app.signed_out');
     S.signedIn = null;
@@ -2255,6 +2313,7 @@ const FORMS = {
   create: submitCreate,
   forgot: submitForgot,
   signin: submitSignin,
+  totp: submitTotp,
   code: submitCode,
   newPassword: (form) => {
     if (!$('#reset-password', form).value) {
@@ -2335,6 +2394,12 @@ document.addEventListener('change', (e) => {
     q('#passkey-note').hidden = t.value !== 'passkey';
     fieldMsg('method', 'error', '');
     if (t.value === 'password') q('#new-password').focus();
+    return;
+  }
+  if (t.dataset.vary === 'codes' && S.pending) {
+    const h = S.pending.profile.handle;
+    if (t.checked) S.codesOn.add(h);
+    else S.codesOn.delete(h);
     return;
   }
   if (t.name === 'vary-passkey' && S.pending) {
