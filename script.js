@@ -94,6 +94,7 @@ const SCENARIOS = {
     tryThis: [
       'Press <strong>Continue with Atmosphere</strong>.',
       'Type <code>sam</code>, <code>@sam.bsky.social</code>, <code>sam@bsky.social</code> or <code>sam.bsky.app</code> and see what Front Door makes of it.',
+      'On Bluesky’s sign-in page, try a variation in these notes: no passkey, one saved on this device, or one only on a lost phone. Then press <strong>Use a passkey</strong>.',
       'Afterwards, sign out and sign in again. The browser now offers Sam’s Atmosphere account.',
     ],
     data: [['Handle', 'sam.bsky.social'], ['Password', 'anything']],
@@ -237,11 +238,17 @@ const STEPS = {
     open: 'Should every provider email say which app asked for it?',
   },
   'pv.signin': {
-    title: 'Provider sign-in', owner: 'provider', journey: ['auth'], event: 'provider.signin_shown',
-    what: 'The provider’s own page, on its own address. The heading names the Atmosphere account and the copy names the provider as its host. Front Door passed the handle through, so only the password is left, and the footer says Potluck never sees it.',
-    principles: ['handshake', 'issuer'],
+    title: 'Provider sign-in', owner: 'provider', journey: ['auth'], event: 'provider.signin_shown', vary: 'signin',
+    what: 'The provider’s own page, on its own address. The heading names the Atmosphere account and the copy names the provider as its host. Front Door passed the handle through, so only the password is left, and the footer says Potluck never sees it. “Use a passkey” is there for everyone. When this device holds a passkey for the account, the browser offers it in the password field, so the page itself never reveals whether the account has one.',
+    principles: ['handshake', 'issuer', 'standard'],
     quote: ['especially because now it redirects to something that looks like it’s owned by Bluesky.', 'Pouria, Semble'],
-    open: 'Providers own this page. This layout is what we’d propose to the reference PDS and Bluesky’s entryway (D8).',
+    open: 'Providers own this page. This layout is what we’d propose to the reference PDS and Bluesky’s entryway (D8). A discoverable passkey could make typing the handle unnecessary, but Front Door still needs the handle to know which provider to send people to.',
+  },
+  'browser.passkey': {
+    title: 'Sign in with a passkey', owner: 'browser', journey: ['auth'], event: 'browser.passkey_prompt_shown',
+    what: 'The browser, not the provider’s page, asks for the passkey, and it only offers passkeys saved for this exact site. That’s why a passkey can’t be phished: a lookalike page gets nothing to relay. The device’s fingerprint, face or screen lock unlocks it. With no passkey on this device, the browser offers one on a phone or tablet nearby.',
+    principles: ['standard', 'handshake'],
+    open: 'Wording: “passkey”, or “fingerprint, face or screen lock”? This may be the next “handle or username” debate.',
   },
   'pv.code': {
     title: 'Sign in with an emailed code', owner: 'provider', journey: ['auth'], event: 'provider.code_shown',
@@ -333,6 +340,12 @@ function freshState(id) {
     draft: {},
     code: null,
     declinedPost: false,
+    passkeys: new Map(), // handle -> passkeys held at the provider: [{ device, here }]
+    codesOn: new Set(), // handles with verification codes switched on
+    passkeyOnly: new Set(), // handles that sign in with a passkey only
+    offered: new Set(), // handles offered a passkey after a password, this run
+    pk: null, // the browser's passkey prompt in progress
+    promptReturn: null, // the screen to go back to when a browser prompt closes
     appTab: null, // Potluck's tab, where the demo starts
     authTab: null, // a provider tab opened for signing in
     mailTab: null, // the person's inbox
@@ -434,6 +447,14 @@ function maskEmail(email) {
 const breakable = (text) => esc(text).replace(/\./g, '.<wbr>');
 
 const formatCode = (code) => `${code.slice(0, 3)} ${code.slice(3)}`;
+
+// Passkeys belong to the provider's site and live on a device.
+const thisDevice = () => (window.matchMedia('(max-width: 600px)').matches ? 'This phone' : 'This laptop');
+const passkeysFor = (handle) => S.passkeys.get(handle) || [];
+const passkeyHere = (handle) => passkeysFor(handle).some((k) => k.here);
+function savePasskey(handle) {
+  S.passkeys.set(handle, [...passkeysFor(handle).filter((k) => !k.here), { device: thisDevice(), here: true }]);
+}
 const newCode = () => String(Math.floor(100000 + Math.random() * 900000));
 
 function announce(text) {
@@ -698,6 +719,7 @@ function renderNotes() {
     <h2 class="ns-title">${step.title}</h2>
     <p class="owner"><span class="owner-dot owner-${step.owner}" aria-hidden="true"></span>Owned by <strong>${OWNERS[step.owner]}</strong></p>
     <p>${step.what}</p>
+    ${step.vary ? varyMarkup(step.vary) : ''}
     ${step.principles.length ? `<p class="ns-sub">Principles</p><ul class="chips">${step.principles.map((k) => `<li>${PRINCIPLES[k]}</li>`).join('')}</ul>` : ''}
     ${step.quote ? `<figure class="quote"><blockquote>“${step.quote[0]}”</blockquote><figcaption>${step.quote[1]}</figcaption></figure>` : ''}
     ${step.evidence ? `<p class="evidence">${step.evidence}</p>` : ''}
@@ -711,6 +733,22 @@ function renderNotes() {
       return `<li class="${current ? 'is-current' : ''}${seen ? ' is-seen' : ''}"${current ? ' aria-current="step"' : ''}><span class="owner-dot owner-${j.owner}" aria-hidden="true"></span><span class="j-label">${j.label}</span><span class="j-owner">${OWNERS[j.owner]}</span></li>`;
     }).join('')}</ol>`;
   paintIcons();
+}
+
+// Variations a presenter can switch on the current screen. They change the
+// simulated account and device, not the design.
+function varyMarkup(kind) {
+  const p = S.pending?.profile;
+  if (kind !== 'signin' || !p) return '';
+  const keys = passkeysFor(p.handle);
+  const state = !keys.length ? 'none' : keys.some((k) => k.here) ? 'here' : 'away';
+  const opt = (value, label) => `<label class="vary-opt"><input type="radio" name="vary-passkey" value="${value}"${state === value ? ' checked' : ''}><span>${label}</span></label>`;
+  return `
+    <div class="vary" role="group" aria-labelledby="vary-title">
+      <p class="ns-sub" id="vary-title">Try a variation</p>
+      <p class="vary-label">A passkey for @${esc(p.handle)}</p>
+      ${opt('none', 'None yet')}${opt('here', 'Saved on this device')}${opt('away', 'Only on a lost phone')}
+    </div>`;
 }
 
 function renderEvents() {
@@ -971,6 +1009,106 @@ function pvSecurity(p, section) {
 /* ------------------------------------------------------------------------ */
 /* Browser account chooser (FedCM)                                          */
 /* ------------------------------------------------------------------------ */
+
+/* The browser's passkey prompts */
+
+function showBrowserPrompt(markup, stepId) {
+  if (!S.promptReturn) S.promptReturn = S.step;
+  els.fedcm.innerHTML = `<div class="fedcm-card pk-card" role="dialog" aria-labelledby="pk-title">${markup}</div>`;
+  els.fedcm.hidden = false;
+  currentTab().page.inert = true;
+  paintIcons();
+  (els.fedcm.querySelector('[data-autofocus]') || els.fedcm.querySelector('button'))?.focus();
+  enter(stepId);
+}
+
+function closeBrowserPrompt() {
+  closeFedcm();
+  if (S.promptReturn) {
+    S.step = S.promptReturn;
+    currentTab().step = S.step;
+    S.promptReturn = null;
+    renderNotes();
+  }
+}
+
+function pkHead(title, sub) {
+  return `<div class="fedcm-head">${icon('key-round', 'pk-key')}<div class="fedcm-head-text" id="pk-title"><strong>${title}</strong><span>${sub}</span></div><button class="icon-btn icon-btn-sm" type="button" data-action="passkeyCancel" aria-label="Close">${icon('x')}</button></div>`;
+}
+
+function pkBusy() {
+  const card = els.fedcm.querySelector('.pk-card');
+  card.innerHTML = `<div class="fedcm-busy">${icon('fingerprint')}<span>Waiting for your fingerprint, face or screen lock…</span></div>`;
+  paintIcons();
+}
+
+// Signing in: the browser offers the passkey saved for this site, if any.
+function passkeySignIn(p) {
+  const host = esc(hostFor(p));
+  S.pk = { mode: 'get', p, onDone: () => signedInWithPasskey(p) };
+  if (passkeyHere(p.handle)) {
+    showBrowserPrompt(`
+      ${pkHead(`Sign in to ${host}`, 'with a passkey')}
+      <div class="pk-body">
+        <div class="pk-acct">${accountRow(p, { meta: false })}</div>
+        <p>Use your fingerprint, face or screen lock to sign in.</p>
+      </div>
+      <div class="pk-actions"><button class="btn btn-secondary btn-sm" type="button" data-action="passkeyCancel">Cancel</button><button class="btn btn-primary btn-sm" type="button" data-action="passkeyConfirm" data-autofocus>Continue</button></div>
+      <p class="fedcm-fine">Your browser keeps this passkey for ${host}. It only works on ${host}, so a lookalike site can’t use it.</p>`, 'browser.passkey');
+    return;
+  }
+  track('browser.no_passkey_on_device');
+  showBrowserPrompt(`
+    ${pkHead(`Sign in to ${host}`, 'with a passkey')}
+    <div class="pk-body"><p><strong>There are no passkeys for ${host} on this device.</strong></p><p>If your passkey is on a phone or tablet, you can use it from there.</p></div>
+    <button class="fedcm-other" type="button" data-action="passkeyOtherDevice">${icon('smartphone')}Use a phone or tablet</button>
+    <div class="pk-actions"><button class="btn btn-secondary btn-sm" type="button" data-action="passkeyCancel" data-autofocus>Cancel</button></div>`, 'browser.passkey');
+}
+
+function passkeyOtherDevice() {
+  track('browser.passkey_other_device');
+  const host = esc(hostFor(S.pk.p));
+  els.fedcm.querySelector('.pk-card').innerHTML = `
+    ${pkHead('Use a passkey from a phone or tablet', host)}
+    <div class="pk-body pk-qr">${icon('qr-code', 'pk-qr-icon')}<p>Scan this code with the phone or tablet that has your passkey for ${host}.</p><p class="pk-wait">${icon('loader-circle', 'spin')}<span>Waiting for your phone…</span></p></div>
+    <div class="pk-actions"><button class="btn btn-secondary btn-sm" type="button" data-action="passkeyCancel" data-autofocus>Cancel</button></div>`;
+  paintIcons();
+  els.fedcm.querySelector('[data-autofocus]')?.focus();
+}
+
+function passkeyConfirm() {
+  const pk = S.pk;
+  pkBusy();
+  later(() => {
+    closeBrowserPrompt();
+    S.pk = null;
+    pk.onDone();
+  }, 900);
+}
+
+function passkeyCancel() {
+  const pk = S.pk;
+  S.pk = null;
+  closeBrowserPrompt();
+  track('browser.passkey_cancelled');
+  if (pk?.onCancel) pk.onCancel();
+  else if (pk?.mode === 'get') {
+    const box = q('#passkey-msg');
+    if (box) {
+      box.innerHTML = `<div class="notice notice-info">${icon('info')}<p>Can’t use a passkey? Sign in with your password, or <button type="button" class="link-btn" data-action="forgotPassword">get a code by email</button>.</p></div>`;
+      paintIcons();
+    }
+  }
+}
+
+function signedInWithPasskey(p) {
+  track('provider.signed_in', 'passkey');
+  showProviderPage(p, '/oauth/authorize', 'Signing in', `
+    <div class="returning">${handshake({ provider: p.provider })}
+      <p class="returning-text">${icon('loader-circle', 'spin')}Signed in with your passkey…</p>
+    </div>`);
+  later(() => pvConsent(p), 700);
+}
 
 function fedcmChoose() {
   const accounts = S.browserAccounts.map(profile).filter(Boolean);
@@ -1536,7 +1674,10 @@ function toProvider(handle) {
   pvSignin(p);
 }
 
-function pvSignin(p) {
+function pvSignin(p, { quiet = false } = {}) {
+  const suggest = passkeyHere(p.handle)
+    ? `<button type="button" class="autofill" data-action="usePasskey">${icon('key-round')}<span class="autofill-value">Passkey for @${esc(p.handle)}</span><span class="autofill-source">On this device</span></button>`
+    : '';
   showProviderPage(p, '/oauth/authorize', 'Sign in', `
     ${handshake({ provider: p.provider })}
     <h1 class="pv-title">Sign in to your Atmosphere account</h1>
@@ -1548,13 +1689,18 @@ function pvSignin(p) {
       </div>
       <div class="field">
         <div class="label-row"><label for="current-password">Password</label><button type="button" class="link-btn" data-action="forgotPassword">Forgot password?</button></div>
-        ${passwordInput('current-password', 'current-password')}
+        ${passwordInput('current-password', 'current-password webauthn')}
+        ${suggest}
         <p class="proto-hint">Any password works. Please don’t type a real one.</p>
         <div id="current-password-msg" class="field-msg" aria-live="polite"></div>
       </div>
       <button class="btn btn-primary btn-block" type="submit">Sign in</button>
-    </form>`);
-  enter('pv.signin');
+    </form>
+    <div class="or-divider"><span>or</span></div>
+    <button class="btn btn-secondary btn-block" type="button" data-action="usePasskey">${icon('key-round')}<span>Use a passkey</span></button>
+    <div id="passkey-msg" aria-live="polite"></div>`);
+  if (quiet) renderNotes();
+  else enter('pv.signin');
 }
 
 function submitSignin(form) {
@@ -1943,6 +2089,10 @@ const ACTIONS = {
     fdFind();
   },
   forgotPassword,
+  usePasskey: () => passkeySignIn(S.pending.profile),
+  passkeyConfirm,
+  passkeyCancel,
+  passkeyOtherDevice,
   resendCode: () => {
     track('provider.code_resent');
     const { profile: p, via } = S.pending;
@@ -2119,6 +2269,13 @@ document.addEventListener('input', (e) => {
 
 document.addEventListener('change', (e) => {
   const t = e.target;
+  if (t.name === 'vary-passkey' && S.pending) {
+    const h = S.pending.profile.handle;
+    if (t.value === 'none') S.passkeys.delete(h);
+    else S.passkeys.set(h, [{ device: t.value === 'here' ? thisDevice() : 'Old phone', here: t.value === 'here' }]);
+    if (S.step === 'pv.signin') pvSignin(S.pending.profile, { quiet: true });
+    return;
+  }
   if (t.dataset.setting === 'share') {
     const wasOff = S.declinedPost;
     S.declinedPost = !t.checked;
@@ -2159,7 +2316,8 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Escape') {
     const { layer } = currentTab();
-    if (!els.fedcm.hidden) ACTIONS.fedcmClose();
+    if (!els.fedcm.hidden && S.pk) passkeyCancel();
+    else if (!els.fedcm.hidden) ACTIONS.fedcmClose();
     else if (!layer.hidden && layer.classList.contains('layer-sheet')) ACTIONS.closeSheet();
   }
 });

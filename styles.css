@@ -2591,6 +2591,53 @@ a {
   font-weight: 600;
 }
 
+/* The browser's passkey prompts share the account chooser's panel */
+
+.pk-key {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+}
+
+.pk-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 16px 12px;
+}
+
+.pk-acct {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.pk-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 4px 16px 14px;
+}
+
+.pk-qr {
+  align-items: center;
+  text-align: center;
+}
+
+.pk-qr-icon {
+  width: 96px;
+  height: 96px;
+  stroke-width: 1.25;
+}
+
+.pk-wait {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
 /* ---------- Provider pages ---------- */
 
 .pv {
@@ -2650,6 +2697,26 @@ a {
 
 .pv-lede {
   margin-top: -10px;
+}
+
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -4px 0;
+  font-size: 13px;
+}
+
+.or-divider::before,
+.or-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+#passkey-msg:empty {
+  display: none;
 }
 
 .pv-alt {
@@ -3297,6 +3364,39 @@ body[data-notes="closed"] .notes {
 .persona-title {
   color: var(--bp-ink-soft);
   font-size: 14px;
+}
+
+/* Variations a presenter can switch on the current screen */
+.vary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 12px;
+  border: 1.5px dashed var(--bp-blue);
+  border-radius: var(--r-sm);
+  background: var(--bp-card);
+}
+
+.vary .ns-sub {
+  margin-top: 0;
+}
+
+.vary-label {
+  color: var(--bp-ink-soft);
+  font-size: 13.5px;
+}
+
+.vary-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.5px;
+  cursor: pointer;
+}
+
+.vary-opt input {
+  margin: 0;
+  accent-color: var(--bp-blue);
 }
 
 .demo-data {
