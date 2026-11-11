@@ -13,7 +13,7 @@
   <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
   <script src="script.js" defer></script>
 </head>
-<body data-notes="open">
+<body data-notes="open" data-frame="shown">
   <header class="proto-bar">
     <div class="proto-brand">
       <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor"/><path d="M12 2.75a9.25 9.25 0 1 1-8.01 4.62" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
@@ -57,6 +57,7 @@
     <aside class="notes" id="notes" aria-label="Prototype notes">
       <div class="notes-head">
         <p class="ns-label">Notes</p>
+        <p class="ns-keys" id="ns-keys"></p>
         <button class="icon-btn icon-btn-sm" type="button" data-action="toggleNotes" aria-label="Close notes"><i data-lucide="x" class="icon"></i></button>
       </div>
       <section class="notes-sec" id="notes-scenario"></section>
@@ -67,6 +68,7 @@
   </div>
 
   <div class="notification" id="notification" hidden></div>
+  <div class="frame-hint" id="frame-hint" aria-hidden="true" hidden></div>
   <div class="sr-only" id="live" aria-live="polite"></div>
   <noscript><p class="noscript">This prototype needs JavaScript to run.</p></noscript>
 </body>

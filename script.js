@@ -404,6 +404,8 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const els = {
   scenarioNav: $('#scenario-nav'),
   notesToggle: $('#notes-toggle'),
+  notesKeys: $('#ns-keys'),
+  frameHint: $('#frame-hint'),
   tabs: $('#tabs'),
   omnibox: $('#omnibox'),
   urlHost: $('#url-host'),
@@ -787,6 +789,32 @@ function renderEvents() {
     <p class="ns-label">Events</p>
     <p class="ns-fine">What an adopting app could count, opt-in and in aggregate, to show the flow is working.</p>
     <ol class="events">${recent.map((e) => `<li><span class="ev-t">${e.t}s</span><code>${e.name}</code>${e.detail ? `<span class="ev-d">${esc(e.detail)}</span>` : ''}</li>`).join('')}</ol>`;
+}
+
+// Alt+A (Option+A on a Mac) hides the bar and the notes, so only the
+// simulated browser shows, for sessions with participants. Browsers and
+// operating systems don't use it, it isn't a Mac dead key, and AltGr
+// (Ctrl+Alt on Windows) doesn't trigger it.
+const IS_MAC = /mac|iphone|ipad/i.test(navigator.userAgentData?.platform || navigator.platform || '');
+const FRAME_KEYS = IS_MAC ? '<kbd>⌥</kbd><kbd>A</kbd>' : '<kbd>Alt</kbd><kbd>A</kbd>';
+const FRAME_KEYS_TEXT = IS_MAC ? 'Option A' : 'Alt A';
+let frameHintTimer = 0;
+
+function isFrameShortcut(e) {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.getModifierState?.('AltGraph')) return false;
+  // Option changes the character on a Mac (å), so fall back to the key's position.
+  const letter = /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : e.code === 'KeyA' ? 'a' : '';
+  return letter === 'a';
+}
+
+function setFrame(shown) {
+  document.body.dataset.frame = shown ? 'shown' : 'hidden';
+  if (!shown && document.activeElement?.closest('.proto-bar, .notes')) document.activeElement.blur();
+  if (!els.notif.hidden) placeNotification();
+  clearTimeout(frameHintTimer);
+  els.frameHint.hidden = shown;
+  if (!shown) frameHintTimer = setTimeout(() => (els.frameHint.hidden = true), 3000);
+  announce(shown ? 'Prototype bar and notes shown.' : `Prototype bar and notes hidden. Press ${FRAME_KEYS_TEXT} to show them.`);
 }
 
 function setNotes(open) {
@@ -1613,6 +1641,11 @@ function welcomeMail(p) {
   };
 }
 
+// Under the prototype bar, or at the top when the bar is hidden.
+function placeNotification() {
+  els.notif.style.top = `${Math.round($('.proto-bar').getBoundingClientRect().bottom) + 12}px`;
+}
+
 function deliverMail(m) {
   S.mailbox.set(m.id, m);
   els.notif.innerHTML = `
@@ -1623,7 +1656,7 @@ function deliverMail(m) {
       <span>${esc(m.preview)}</span>
     </button>
     <button class="icon-btn icon-btn-sm notif-close" type="button" data-action="hideNotification" aria-label="Dismiss notification">${icon('x')}</button>`;
-  els.notif.style.top = `${Math.round($('.proto-bar').getBoundingClientRect().bottom) + 12}px`;
+  placeNotification();
   els.notif.hidden = false;
   paintIcons();
   announce(`New email from ${m.from}: ${m.subject}`);
@@ -2553,6 +2586,11 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+  if (isFrameShortcut(e)) {
+    e.preventDefault();
+    if (!e.repeat) setFrame(document.body.dataset.frame === 'hidden');
+    return;
+  }
   if (e.target.id === 'handle' && combo.items.length) {
     const n = combo.items.length;
     if (e.key === 'ArrowDown') {
@@ -2621,5 +2659,7 @@ window.addEventListener('hashchange', () => {
     /* ignore */
   }
   setNotes(stored ? stored === 'open' : window.matchMedia('(min-width: 1100px)').matches);
+  els.notesKeys.innerHTML = `${FRAME_KEYS} hides the bar and notes`;
+  els.frameHint.innerHTML = `Press ${FRAME_KEYS} to show the bar and notes`;
   startScenario(location.hash.slice(1));
 })();

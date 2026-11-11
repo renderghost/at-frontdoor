@@ -3840,3 +3840,59 @@ body[data-notes="closed"] .notes {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- Participant view: Alt+A hides the bar and the notes ---------- */
+
+body[data-frame="hidden"] .proto-bar,
+body[data-frame="hidden"] .notes {
+  display: none;
+}
+
+.ns-keys {
+  margin: 0 0 0 auto;
+  padding-left: 12px;
+  font-size: 13px;
+}
+
+.frame-hint {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  z-index: 60;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  background: var(--bp-card);
+  border: 1.5px dashed var(--bp-blue);
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-1);
+  color: var(--bp-ink);
+  font-family: var(--bp-font);
+  font-size: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.frame-hint[hidden] {
+  display: none;
+}
+
+.ns-keys kbd,
+.frame-hint kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  margin: 0 2px;
+  padding: 0 5px;
+  border: 1.5px solid var(--bp-blue);
+  border-bottom-width: 2.5px;
+  border-radius: 5px;
+  background: var(--bp-paper);
+  font: 700 12px/1.5 var(--bp-font);
+  text-align: center;
+}
+
+/* No keyboard, no shortcut to mention. */
+@media (hover: none) and (pointer: coarse) {
+  .ns-keys {
+    display: none;
+  }
+}
