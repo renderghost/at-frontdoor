@@ -18,11 +18,13 @@ Link straight to a scenario with a hash: `index.html#new`, `#returning`, `#forgo
 
 ### With participants
 
-Press **Alt+A** (**Option+A** on a Mac) to hide the prototype bar and the notes, so only the simulated browser shows. Press it again to bring them back. A reminder shows for a few seconds after hiding them. The shortcut works even while typing in a field, and no browser or operating system uses it. It isn't a Mac dead key, and AltGr on Windows and Linux doesn't trigger it, so people typing accented letters there won't hit it by accident. On a Mac, Option+A doesn't type “å” in the prototype. Choose the scenario before hiding the bar. On a phone or tablet without a keyboard, use the Notes button instead.
+Press **Shift twice** to hide the prototype bar and the notes, so only the simulated browser shows. Press Shift twice again to bring them back. A reminder shows for a few seconds after hiding them. It works the same on Mac, Windows and Linux, in every browser, and even with the cursor in a field, because Shift on its own types nothing. Choose the scenario before hiding the bar. On a phone or tablet without a keyboard, use the Notes button instead.
 
 ### On GitHub Pages
 
 The prototype is published from `main` at [frontdoor.renderg.host](https://frontdoor.renderg.host), the domain set in `CNAME`. No workflow is needed: in the repository, **Settings → Pages** has **Source** set to **Deploy from a branch** with `main` and `/ (root)`. The `.nojekyll` file tells Pages to serve the files as they are.
+
+The site sits behind Cloudflare, which keeps `styles.css` and `script.js` for 4 hours. When either changes, raise the `?v=` number on both links in `index.html`, so browsers and Cloudflare fetch the new files straight away.
 
 ## Scenarios
 
