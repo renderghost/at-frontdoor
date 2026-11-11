@@ -793,15 +793,17 @@ function renderEvents() {
 
 // Alt+A (Option+A on a Mac) hides the bar and the notes, so only the
 // simulated browser shows, for sessions with participants. Browsers and
-// operating systems don't use it, it isn't a Mac dead key, and AltGr
-// (Ctrl+Alt on Windows) doesn't trigger it.
+// operating systems don't use it, and it isn't a Mac dead key. AltGr
+// doesn't trigger it: Windows reports AltGr as Ctrl+Alt, and Linux doesn't
+// report it as Alt. Don't test the "AltGraph" modifier state: some Mac
+// browsers report Option as AltGraph, which would block Option+A entirely.
 const IS_MAC = /mac|iphone|ipad/i.test(navigator.userAgentData?.platform || navigator.platform || '');
 const FRAME_KEYS = IS_MAC ? '<kbd>⌥</kbd><kbd>A</kbd>' : '<kbd>Alt</kbd><kbd>A</kbd>';
 const FRAME_KEYS_TEXT = IS_MAC ? 'Option A' : 'Alt A';
 let frameHintTimer = 0;
 
 function isFrameShortcut(e) {
-  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.getModifierState?.('AltGraph')) return false;
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return false;
   // Option changes the character on a Mac (å), so fall back to the key's position.
   const letter = /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : e.code === 'KeyA' ? 'a' : '';
   return letter === 'a';

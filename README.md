@@ -18,7 +18,7 @@ Link straight to a scenario with a hash: `index.html#new`, `#returning`, `#forgo
 
 ### With participants
 
-Press **Alt+A** (**Option+A** on a Mac) to hide the prototype bar and the notes, so only the simulated browser shows. Press it again to bring them back. A reminder shows for a few seconds after hiding them. The shortcut works even while typing in a field, and no browser or operating system uses it. It isn't a Mac dead key, and AltGr doesn't trigger it, so people typing accented letters won't hit it by accident. Choose the scenario before hiding the bar. On a phone or tablet without a keyboard, use the Notes button instead.
+Press **Alt+A** (**Option+A** on a Mac) to hide the prototype bar and the notes, so only the simulated browser shows. Press it again to bring them back. A reminder shows for a few seconds after hiding them. The shortcut works even while typing in a field, and no browser or operating system uses it. It isn't a Mac dead key, and AltGr on Windows and Linux doesn't trigger it, so people typing accented letters there won't hit it by accident. On a Mac, Option+A doesn't type “å” in the prototype. Choose the scenario before hiding the bar. On a phone or tablet without a keyboard, use the Notes button instead.
 
 ### On GitHub Pages
 
