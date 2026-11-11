@@ -791,20 +791,43 @@ function renderEvents() {
     <ol class="events">${recent.map((e) => `<li><span class="ev-t">${e.t}s</span><code>${e.name}</code>${e.detail ? `<span class="ev-d">${esc(e.detail)}</span>` : ''}</li>`).join('')}</ol>`;
 }
 
-// Alt+A (Option+A on a Mac) hides the bar and the notes, so only the
-// simulated browser shows, for sessions with participants. Browsers and
-// operating systems don't use it, it isn't a Mac dead key, and AltGr
-// (Ctrl+Alt on Windows) doesn't trigger it.
-const IS_MAC = /mac|iphone|ipad/i.test(navigator.userAgentData?.platform || navigator.platform || '');
-const FRAME_KEYS = IS_MAC ? '<kbd>⌥</kbd><kbd>A</kbd>' : '<kbd>Alt</kbd><kbd>A</kbd>';
-const FRAME_KEYS_TEXT = IS_MAC ? 'Option A' : 'Alt A';
+// Pressing Shift twice hides the bar and the notes, so only the simulated
+// browser shows, for sessions with participants. Pressing it twice again
+// brings them back. Shift on its own does nothing in any browser or system,
+// behaves the same on every keyboard, and types nothing, so it also works
+// with the cursor in a field. A tap is Shift pressed and released on its
+// own; a second tap within FRAME_TAP_MS toggles the frame.
+const FRAME_TAP_MS = 400;
+const FRAME_KEYS = '<kbd>Shift</kbd> twice';
 let frameHintTimer = 0;
+const shiftTap = { clean: false, last: -Infinity };
 
-function isFrameShortcut(e) {
-  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.getModifierState?.('AltGraph')) return false;
-  // Option changes the character on a Mac (å), so fall back to the key's position.
-  const letter = /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : e.code === 'KeyA' ? 'a' : '';
-  return letter === 'a';
+function resetShiftTap() {
+  shiftTap.clean = false;
+  shiftTap.last = -Infinity;
+}
+
+function watchShiftTaps() {
+  // Capture, so no other handler can hide a key from it.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Shift') return resetShiftTap(); // any other key means it isn't a tap
+    if (e.repeat) shiftTap.clean = false; // held down, not tapped
+    else shiftTap.clean = !(e.ctrlKey || e.altKey || e.metaKey);
+  }, true);
+  document.addEventListener('keyup', (e) => {
+    if (e.key !== 'Shift') return;
+    const tapped = shiftTap.clean;
+    shiftTap.clean = false;
+    if (!tapped) return resetShiftTap();
+    const now = Date.now();
+    if (now - shiftTap.last <= FRAME_TAP_MS) {
+      resetShiftTap();
+      setFrame(document.body.dataset.frame === 'hidden');
+    } else shiftTap.last = now;
+  }, true);
+  // Shift-clicks and switching windows don't count.
+  document.addEventListener('pointerdown', resetShiftTap, true);
+  window.addEventListener('blur', resetShiftTap);
 }
 
 function setFrame(shown) {
@@ -814,7 +837,7 @@ function setFrame(shown) {
   clearTimeout(frameHintTimer);
   els.frameHint.hidden = shown;
   if (!shown) frameHintTimer = setTimeout(() => (els.frameHint.hidden = true), 3000);
-  announce(shown ? 'Prototype bar and notes shown.' : `Prototype bar and notes hidden. Press ${FRAME_KEYS_TEXT} to show them.`);
+  announce(shown ? 'Prototype bar and notes shown.' : 'Prototype bar and notes hidden. Press Shift twice to show them.');
 }
 
 function setNotes(open) {
@@ -2586,11 +2609,6 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (isFrameShortcut(e)) {
-    e.preventDefault();
-    if (!e.repeat) setFrame(document.body.dataset.frame === 'hidden');
-    return;
-  }
   if (e.target.id === 'handle' && combo.items.length) {
     const n = combo.items.length;
     if (e.key === 'ArrowDown') {
@@ -2659,7 +2677,8 @@ window.addEventListener('hashchange', () => {
     /* ignore */
   }
   setNotes(stored ? stored === 'open' : window.matchMedia('(min-width: 1100px)').matches);
-  els.notesKeys.innerHTML = `${FRAME_KEYS} hides the bar and notes`;
+  els.notesKeys.innerHTML = `Press ${FRAME_KEYS} to hide the bar and notes`;
   els.frameHint.innerHTML = `Press ${FRAME_KEYS} to show the bar and notes`;
+  watchShiftTaps();
   startScenario(location.hash.slice(1));
 })();

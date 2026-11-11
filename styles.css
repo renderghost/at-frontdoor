@@ -2838,7 +2838,7 @@ a {
 .ta-link {
   position: absolute;
   top: 50%;
-  left: 33px;
+  left: 50%;
   z-index: 1;
   transform: translate(-50%, -50%);
   display: grid;
