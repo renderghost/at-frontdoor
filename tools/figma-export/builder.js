@@ -4,24 +4,41 @@ const W_MONO = { 400: 'Regular', 500: 'Medium', 600: 'SemiBold', 700: 'Bold', 80
 const MONO = 'Roboto Mono';
 const W_NAMED = { 200: 'ExtraLight', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'SemiBold', 700: 'Bold', 800: 'ExtraBold', 900: 'Black' };
 const FAMILY = { Fraunces: 'Fraunces', Newsreader: 'Newsreader', Comic: 'Comic Neue' };
+// Browsers set a variable font's optical size to the text size
+// (font-optical-sizing: auto), within the font's range. Figma uses the
+// font's default unless it's told, so say so wherever the family has the axis.
+const OPSZ = { Fraunces: [9, 144], Newsreader: [6, 72] };
+const OPSZ_OK = {};
+const withOpsz = (font, size) => {
+  const r = OPSZ[font.family];
+  if (!r || !size) return font;
+  if (OPSZ_OK[font.family] === undefined) OPSZ_OK[font.family] = (figma.getFontFamilyVariationAxes(font.family) || []).includes('opsz');
+  return OPSZ_OK[font.family] ? { ...font, variationSettings: { opsz: Math.min(r[1], Math.max(r[0], size)) } } : font;
+};
 const fontOf = (st) => {
   if (st.f === 'Mono') return { family: MONO, style: W_MONO[st.w] || 'Regular' };
   if (FAMILY[st.f]) {
     const base = W_NAMED[st.w] || 'Regular';
-    return { family: FAMILY[st.f], style: st.it ? (base === 'Regular' ? 'Italic' : `${base} Italic`) : base };
+    return withOpsz({ family: FAMILY[st.f], style: st.it ? (base === 'Regular' ? 'Italic' : `${base} Italic`) : base }, st.z);
   }
   const base = W_INTER[st.w] || 'Regular';
   return { family: 'Inter', style: st.it ? (base === 'Regular' ? 'Italic' : `${base} Italic`) : base };
 };
-const S = { vars: {}, vals: {}, styles: {}, comps: {}, compPage: null, frames: {}, icons: {}, newComps: 0, nodes: 0, warn: [] };
+const S = { vars: {}, vals: {}, colls: {}, modeOf: {}, alphaSet: {}, styles: {}, comps: {}, compPage: null, frames: {}, icons: {}, newComps: 0, nodes: 0, warn: [] };
 
 async function setup(opts) {
   const colls = await figma.variables.getLocalVariableCollectionsAsync();
-  const modeOf = {};
-  for (const c of colls) modeOf[c.id] = c.modes[0].modeId;
+  for (const c of colls) { S.colls[c.id] = c; S.modeOf[c.id] = c.modes[0].modeId; }
+  const byId = {};
   for (const v of await figma.variables.getLocalVariablesAsync('COLOR')) {
     S.vars[v.name] = v;
-    S.vals[v.name] = v.valuesByMode[modeOf[v.variableCollectionId]];
+    byId[v.id] = v;
+  }
+  // Values, with aliases followed to the colour they stand for
+  for (const v of Object.values(S.vars)) {
+    let val = v.valuesByMode[S.modeOf[v.variableCollectionId]];
+    for (let i = 0; i < 10 && val && val.type === 'VARIABLE_ALIAS' && byId[val.id]; i++) val = byId[val.id].valuesByMode[S.modeOf[byId[val.id].variableCollectionId]];
+    if (val && val.r !== undefined) S.vals[v.name] = val;
   }
   for (const s of await figma.getLocalTextStylesAsync()) S.styles[s.name] = s;
   const fonts = [];
@@ -66,7 +83,7 @@ function gradientPaints(n) {
       const base = ref ? rgba(ref) : { r: 0, g: 0, b: 0, a: 0 };
       const stop = { position: pos, color: { r: base.r, g: base.g, b: base.b, a: c ? base.a : 0 } };
       const [name] = c ? splitTok(c) : [null];
-      if (c && name && !name.startsWith('#') && S.vars[name] && !c.includes('@')) stop.boundVariables = { color: figma.variables.createVariableAlias(S.vars[name]) };
+      if (c && name && !name.startsWith('#') && S.vars[name]) stop.boundVariables = { color: figma.variables.createVariableAlias(varFor(c)) };
       stops.push(stop);
     });
     const tf = g.a === 90 ? [[1, 0, 0], [0, 1, 0]] : g.a === 270 ? [[-1, 0, 1], [0, -1, 1]] : g.a === 0 ? [[0, -1, 1], [1, 0, 0]] : [[0, 1, 0], [-1, 0, 1]];
@@ -77,15 +94,34 @@ function gradientPaints(n) {
 
 const hexRgb = (h) => { const n = parseInt(h.slice(1, 7), 16); return { r: ((n >> 16) & 255) / 255, g: ((n >> 8) & 255) / 255, b: (n & 255) / 255 }; };
 function splitTok(tok) { const i = tok.indexOf('@'); return i < 0 ? [tok, undefined] : [tok.slice(0, i), parseFloat(tok.slice(i + 1))]; }
+// A colour at part opacity (ink@0.12) is a variable of its own, "alpha/ink 12%",
+// made from its base colour. A paint bound to a variable can't safely carry
+// its own opacity: Figma drops it in instances nested inside instances.
+function varFor(tok) {
+  const [name, a] = splitTok(tok);
+  const base = S.vars[name];
+  if (a === undefined || a >= 1 || !base) return base;
+  const key = `alpha/${name} ${Math.round(a * 100)}%`;
+  if (!S.alphaSet[key]) {
+    const coll = S.colls[base.variableCollectionId];
+    let v = S.vars[key];
+    if (!v) { v = figma.variables.createVariable(key, coll, 'COLOR'); v.scopes = ['ALL_FILLS', 'STROKE_COLOR']; S.vars[key] = v; }
+    const c = S.vals[name] || { r: 0, g: 0, b: 0, a: 1 };
+    v.setValueForMode(S.modeOf[coll.id], { r: c.r, g: c.g, b: c.b, a: (c.a === undefined ? 1 : c.a) * a });
+    v.description = `${name} at ${Math.round(a * 100)}% opacity, as the prototype CSS uses it`;
+    S.alphaSet[key] = true;
+  }
+  return S.vars[key];
+}
 function paint(tok) {
   if (!tok) return null;
   const [name, a] = splitTok(tok);
   if (name.startsWith('#')) return { type: 'SOLID', color: hexRgb(name), opacity: a === undefined ? 1 : a };
-  const v = S.vars[name];
-  if (!v) { S.warn.push('var ' + name); return { type: 'SOLID', color: { r: 0, g: 0, b: 0 }, opacity: a === undefined ? 1 : a }; }
-  const b = figma.variables.setBoundVariableForPaint({ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }, 'color', v);
-  return a === undefined ? b : { ...b, opacity: a };
+  if (!S.vars[name]) { S.warn.push('var ' + name); return { type: 'SOLID', color: { r: 0, g: 0, b: 0 }, opacity: a === undefined ? 1 : a }; }
+  return figma.variables.setBoundVariableForPaint({ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }, 'color', varFor(tok));
 }
+function setPaints(node, prop, paints) { node[prop] = paints; }
+function setRangePaint(t, s, e, p) { t.setRangeFills(s, e, [p]); }
 function rgba(tok) {
   const [name, a] = splitTok(tok);
   if (name.startsWith('#')) return { ...hexRgb(name), a: a === undefined ? 1 : a };
@@ -100,16 +136,17 @@ function applyBox(f, n) {
   }
   if (n.fx) f.effects = n.fx.map(([c, x, y, b, s, ins]) => ({ type: ins ? 'INNER_SHADOW' : 'DROP_SHADOW', color: rgba(c), offset: { x, y }, radius: b, spread: s, visible: true, blendMode: 'NORMAL' }));
   if (n.op !== undefined) f.opacity = n.op;
-  f.clipsContent = !!n.clip;
+  // Figma only draws a frame's shadow spread when the frame clips its content
+  f.clipsContent = !!n.clip || !!(n.fx && n.fx.some((e) => e[4] > 0));
   if (n.bd) {
     const [w, c] = n.bd;
     f.strokeAlign = 'INSIDE';
     if (w.every((x) => x === w[0])) f.strokeWeight = w[0];
     else { f.strokeTopWeight = w[0]; f.strokeRightWeight = w[1]; f.strokeBottomWeight = w[2]; f.strokeLeftWeight = w[3]; }
     if (n.dash) f.dashPattern = [4, 3];
-    f.strokes = [paint(c)];
+    setPaints(f, 'strokes', [paint(c)]);
   } else f.strokes = [];
-  f.fills = [...(n.bg ? [paint(n.bg)] : []), ...gradientPaints(n)];
+  setPaints(f, 'fills', [...(n.bg ? [paint(n.bg)] : []), ...gradientPaints(n)]);
 }
 function applyLayout(f, n) {
   if (n.L === 'H' || n.L === 'V') {
@@ -164,13 +201,13 @@ function applyRuns(t, n, reset) {
     t.setRangeFontSize(0, len, st.z);
     t.setRangeTextDecoration(0, len, 'NONE');
   }
-  if (len) t.setRangeFills(0, len, [paint(st.c)]);
+  if (len) setRangePaint(t, 0, len, paint(st.c));
   if (st.u && len) decorate(t, 0, len, st.u);
   for (const [s, e, r] of n.r || []) {
     if (e > len || s >= e) continue;
     if (r.w !== st.w || r.f !== st.f || r.it !== st.it) t.setRangeFontName(s, e, fontOf(r));
     if (r.z !== st.z) t.setRangeFontSize(s, e, r.z);
-    if (r.c !== st.c) t.setRangeFills(s, e, [paint(r.c)]);
+    if (r.c !== st.c) setRangePaint(t, s, e, paint(r.c));
     if (r.u) decorate(t, s, e, r.u);
     if ((r.ls || 0) !== (st.ls || 0)) t.setRangeLetterSpacing(s, e, { unit: 'PIXELS', value: r.ls || 0 });
   }
@@ -206,8 +243,8 @@ function svgNode(kind, name, size, sw) {
 }
 function recolour(root, tok) {
   for (const v of root.findAll((x) => x.type !== 'FRAME' && x.type !== 'INSTANCE' && x.type !== 'COMPONENT')) {
-    if ('strokes' in v && v.strokes.length) v.strokes = v.strokes.map(() => paint(tok));
-    if ('fills' in v && v.fills.length) v.fills = v.fills.map(() => paint(tok));
+    if ('strokes' in v && v.strokes.length) setPaints(v, 'strokes', v.strokes.map(() => paint(tok)));
+    if ('fills' in v && v.fills.length) setPaints(v, 'fills', v.fills.map(() => paint(tok)));
   }
 }
 async function glyphMain(kind, name, size, sw) {
@@ -228,11 +265,22 @@ async function glyphMain(kind, name, size, sw) {
   S.newComps++;
   return c;
 }
+// A turned glyph (CSS rotate, clockwise, about the centre) as a Figma
+// transform. Quarter turns only, so the sines and cosines are whole numbers.
+function turned(rot, w, h, x, y) {
+  const t = (rot * Math.PI) / 180, a = Math.round(Math.cos(t)), b = Math.round(Math.sin(t));
+  return [[a, -b, x + w / 2 - (a * w) / 2 + (b * h) / 2], [b, a, y + h / 2 - (b * w) / 2 - (a * h) / 2]];
+}
+const moveTo = (target, node, n) => {
+  if (n.rot && target === node) target.relativeTransform = turned(n.rot, node.width, node.height, n.x, n.y);
+  else { target.x = n.x; target.y = n.y; }
+};
 async function glyphInstance(n) {
   // An SVG keeps its aspect ratio: the drawing is as big as the box's smaller side
   const main = await glyphMain(n.t === 'M' ? 'mark' : 'icon', n.i, Math.min(n.w, n.h || n.w), n.sw);
   const inst = main.createInstance();
   inst.name = n.t === 'M' ? 'mark' : `icon/${n.i}`;
+  if (n.rot) inst.relativeTransform = turned(n.rot, inst.width, inst.height, 0, 0);
   if (n.col && n.col !== 'ink') recolour(inst, n.col);
   S.nodes++;
   return inst;
@@ -268,6 +316,14 @@ async function override(node, n, isRoot) {
     if (node.type !== 'TEXT') return;
     if (node.characters !== n.s) node.characters = n.s;
     applyRuns(node, n, true);
+    // The browser cut this text off with an ellipsis, so it fills its slot and
+    // truncates, even where the main component's text was short enough to hug.
+    if (n.el && n.tw !== undefined && n.tw > n.w + 0.5 && node.parent && node.parent.layoutMode && node.parent.layoutMode !== 'NONE') {
+      node.layoutSizingHorizontal = 'FILL';
+      node.textAutoResize = 'NONE';
+      node.textTruncation = 'ENDING';
+      return;
+    }
     if ((n.ln > 1 || n.el) && node.layoutSizingHorizontal === 'FIXED' && Math.abs(node.width - n.w) > 1) {
       node.resize(n.w, node.height);
       // Text inside an instance ignores resize; fill the slot instead
@@ -283,6 +339,9 @@ async function override(node, n, isRoot) {
       const cur = await node.getMainComponentAsync();
       if (!cur || cur.id !== want.id) node.swapComponent(want);
       await override(node, n, true);
+      // Figma ignores resizing an instance inside an instance, so a nested
+      // component's size has to come from its parent's variant: prepare.js
+      // puts nested heights in the signature.
     }
     return;
   }
@@ -347,7 +406,7 @@ async function build(n, parent, pairs) {
   }
   if (inAL && n.ab) {
     target.layoutPositioning = 'ABSOLUTE';
-    target.x = n.x; target.y = n.y;
+    moveTo(target, node, n);
     if (!isText && node.type !== 'INSTANCE' && 'layoutMode' in node && node.layoutMode !== 'NONE') {
       node.layoutSizingHorizontal = 'FIXED'; node.layoutSizingVertical = 'FIXED';
       node.resize(Math.max(0.01, n.w), Math.max(0.01, n.h));
@@ -357,9 +416,12 @@ async function build(n, parent, pairs) {
     else {
       if (n.sw === 'F' && !isText) target.layoutSizingHorizontal = 'FILL';
       if (n.sh === 'F' && !isText) target.layoutSizingVertical = 'FILL';
+      // Pushed in by an offset but still filling: the item fills its wrapper too.
+      if (target !== node && n.sw === 'F' && !isText) node.layoutSizingHorizontal = 'FILL';
+      if (target !== node && n.sh === 'F' && !isText) node.layoutSizingVertical = 'FILL';
     }
   } else {
-    target.x = n.x; target.y = n.y;
+    moveTo(target, node, n);
   }
   if (node.type !== 'TEXT' && n.t !== 'S' && n.t !== 'I' && n.t !== 'M') pairs.push([node, n]);
   return node;
@@ -378,6 +440,10 @@ function verify(pairs) {
     if (hz === 'HUG' && (dw < -1.5 || dw > 8)) { node.layoutSizingHorizontal = 'FIXED'; node.resize(Math.max(0.01, n.w), node.height); }
     if (vt === 'HUG' && (dh < -1.5 || dh > 8)) { node.layoutSizingVertical = 'FIXED'; node.resize(node.width, Math.max(0.01, n.h)); }
     if (node.type === 'INSTANCE' && !parentAL && (Math.abs(node.width - n.w) > 1.5 || Math.abs(node.height - n.h) > 1.5)) node.resize(n.w, n.h);
+    // A fixed-size instance in an auto-layout row, such as a browser tab that
+    // the browser squeezed on a phone, takes the browser's size too.
+    if (node.type === 'INSTANCE' && parentAL && hz === 'FIXED' && Math.abs(node.width - n.w) > 1.5) node.resize(n.w, node.height);
+    if (node.type === 'INSTANCE' && parentAL && vt === 'FIXED' && Math.abs(node.height - n.h) > 1.5) node.resize(node.width, n.h);
   }
 }
 
