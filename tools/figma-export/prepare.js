@@ -30,11 +30,14 @@ function sigOf(n, isRoot) {
   if (!n) return '';
   switch (n.t) {
     case 'T': return 'T' + JSON.stringify([tsKey(n.st), n.st.c, n.st.u, n.st.it, n.al, n.el, n.ln > 1 ? 1 : 0, n.sw, n.ab ? 1 : 0]);
-    case 'I': return `I${n.i}:${r1(n.w)}`;
+    case 'I': return `I${n.i}:${r1(n.w)}${n.rot ? ':r' + n.rot : ''}`;
     case 'M': return `M:${r1(n.w)}`;
     case 'S': return `S:${n.spring ? 'spring' : `${r1(n.w)}x${r1(n.h)}`}`;
     default: {
-      if (n.k && !isRoot) return 'K:' + n.k;
+      // A nested component's height is part of its parent's signature: Figma
+      // can't resize an instance inside an instance, so a phone recipe card,
+      // whose food tile is taller, needs a variant of its own.
+      if (n.k && !isRoot) return 'K:' + n.k + ':' + r1(n.h);
       const leaf = !(Array.isArray(n.c) ? n.c : []).some((c) => c.t === 'T' || c.t === 'F');
       const own = [n.n, n.k ? n.cls : null, n.L, n.g, n.cg, n.wr, n.p, n.ai, n.ci, n.bg, n.gr, n.bd, n.dash, n.r, n.fx, n.op, n.clip, isRoot ? null : n.sw, isRoot ? null : n.sh, n.ab ? 1 : 0, n.off, leaf ? [r1(n.w), r1(n.h)] : null];
       return 'F' + JSON.stringify(own) + '[' + (Array.isArray(n.c) ? n.c : []).map((c) => sigOf(c, false)).join(',') + ']';
@@ -54,9 +57,26 @@ const labelOf = (n) => {
   if (n.k === 'Input') parts = parts.filter((p) => p !== 'input');
   if (n.k !== 'Tile' && n.k !== 'Food tile') {
     const ic = (n.c || []).find((c) => c.t === 'I') || ((n.c || []).find((c) => c.t === 'F' && (c.c || []).some((q) => q.t === 'I')) || { c: [] }).c.find((q) => q.t === 'I');
-    if (ic) parts.push(ic.i);
+    if (ic) parts.push(ic.rot ? `${ic.i} turned` : ic.i);
   }
   return parts.join(' ') || 'default';
+};
+
+// When two variants of a component share a label, name the new one by what
+// sets it apart: the width it was captured at, its first words, or its size.
+// A number is the last resort.
+const firstText = (n) => {
+  if (!n) return '';
+  if (n.t === 'T' && n.s && n.s.trim()) return n.s.trim();
+  // Initials in an avatar or a tile don't tell variants apart; the name next to them does.
+  for (const c of Array.isArray(n.c) ? n.c : []) { if (c.k === 'Avatar' || c.k === 'Tile') continue; const t = firstText(c); if (t) return t; }
+  return '';
+};
+const clean = (t) => t.replace(/[\/,=]/g, ' ').replace(/\s+/g, ' ').trim();
+const words = (t) => { const w = clean(t).split(' ').slice(0, 4).join(' '); return w.length > 28 ? w.slice(0, 27) + '…' : w; };
+const qualifiers = (n, mode) => {
+  const text = words(firstText(n));
+  return [mode, text, text && `${mode} ${text}`, `${Math.round(n.w)} wide`, `${mode} ${Math.round(n.w)} wide`].filter(Boolean);
 };
 
 const compSigs = new Map(); // sig -> name
@@ -83,11 +103,13 @@ for (const f of files) {
         const sig = sigOf(n, true);
         if (!compSigs.has(sig)) {
           const base = labelOf(n);
-          const used = labelsUsed.get(n.k) || new Map();
+          const used = labelsUsed.get(n.k) || new Set();
           labelsUsed.set(n.k, used);
-          const cnt = (used.get(base) || 0) + 1;
-          used.set(base, cnt);
-          compSigs.set(sig, `${n.k} / ${cnt > 1 ? `${base} ${cnt}` : base}`);
+          let label = base;
+          if (used.has(label)) label = qualifiers(n, f.mode).map((q) => `${base} ${q}`).find((l) => !used.has(l)) || label;
+          for (let i = 2; used.has(label); i++) label = `${base} ${i}`;
+          used.add(label);
+          compSigs.set(sig, `${n.k} / ${label}`);
         }
         n.cn = compSigs.get(sig);
       }

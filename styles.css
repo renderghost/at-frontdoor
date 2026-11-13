@@ -93,10 +93,16 @@
   --pl-line-strong: rgb(91 58 34 / 0.34);
   --pl-bark: #3a2416;
   --pl-bark-raised: #4b3020;
+  --pl-bark-cream: #ffecc8; /* the lines on the bark, below, are this cream */
   --pl-bark-line: rgb(255 236 200 / 0.18);
   --pl-bark-line-strong: rgb(255 236 200 / 0.36);
   --pl-on-bark: #fff4dc;
   --pl-on-bark-soft: #e2c9a6;
+  --pl-tile-apricot: #f8cf9c;
+  --pl-tile-clay: #efb99b;
+  --pl-tile-straw: #e9d29a;
+  --pl-tile-oat: #dcc3a1;
+  --pl-tile-flour: #f3e7cc;
   --pl-shadow-bark: 0 1px 2px rgb(0 0 0 / 0.22), 0 6px 18px rgb(0 0 0 / 0.2);
   --pl-display: "Fraunces", Georgia, "Times New Roman", serif;
   --pl-text: "Newsreader", Georgia, "Times New Roman", serif;
@@ -1431,27 +1437,27 @@ a {
 }
 
 .potluck .food.tint-0 {
-  background: #fde3a1;
+  background: var(--pl-yellow-soft);
 }
 
 .potluck .food.tint-1 {
-  background: #f8cf9c;
+  background: var(--pl-tile-apricot);
 }
 
 .potluck .food.tint-2 {
-  background: #efb99b;
+  background: var(--pl-tile-clay);
 }
 
 .potluck .food.tint-3 {
-  background: #e9d29a;
+  background: var(--pl-tile-straw);
 }
 
 .potluck .food.tint-4 {
-  background: #dcc3a1;
+  background: var(--pl-tile-oat);
 }
 
 .potluck .food.tint-5 {
-  background: #f3e7cc;
+  background: var(--pl-tile-flour);
 }
 
 .pl-card {

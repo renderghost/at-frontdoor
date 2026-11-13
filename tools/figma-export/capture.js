@@ -86,11 +86,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let counter = 0;
 
   async function boot(scenario) {
+    // A blank page first, so booting the same scenario again reloads it.
+    await page.goto('about:blank');
     await page.goto(`file://${ROOT}/index.html#${scenario}`);
-    await page.waitForFunction(() => window.lucide && typeof startScenario === 'function' && document.querySelector('.pl-card'));
+    await page.waitForFunction(() => window.lucide && typeof startScenario === 'function' && document.querySelector('.pl-card'), null, { polling: 100 });
     await page.evaluate(() => document.fonts.ready);
     await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important} .fd-np-before::before,.fd-np-after::after{content:none!important}' });
     await page.addScriptTag({ content: extractJs });
+    // A toast hides itself after a few seconds, so which states caught one
+    // came down to timing. Here it stays up until its state is captured, then
+    // goes: it shows in the state straight after the action that raised it.
+    await page.evaluate(() => {
+      const raise = window.toast;
+      window.toast = function (...args) {
+        raise.apply(this, args);
+        clearTimeout(window.toast.timer);
+      };
+    });
     if (MODE === 'phone') await page.evaluate(() => setNotes(false));
     else await page.evaluate(() => setNotes(true));
     await page.evaluate((id) => startScenario(id), scenario);
@@ -186,6 +198,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const spec = { file, scenario, id, label, mode: MODE, step: step.step, stepTitle: step.title, host: step.host, size: data.size, browser: data.browser.tree, notes: data.notes ? data.notes.tree : null, notesAt: data.notesAt, notif: data.notif ? data.notif.tree : null, notifAt: data.notifAt };
     fs.writeFileSync(path.join(OUT, MODE, `${file}.json`), JSON.stringify(spec));
     await page.locator('.browser').screenshot({ path: path.join(OUT, MODE, `${file}.png`) });
+    await page.evaluate(() => { els.toast.hidden = true; });
     index.push({ file, scenario, id, label, step: step.step, size: data.size });
     await page.setViewportSize(vp);
     await sleep(30);
@@ -199,140 +212,247 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await settle();
   };
 
+  // ONLY=returning,forgot captures just those scenarios, while working on a walk.
+  const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
+  const want = (id) => !only || only.includes(id);
+
+  // A simulated account setting, as the notes' “Try a variation” controls set it.
+  async function vary(kind) {
+    await page.evaluate((kind) => {
+      const h = S.pending.profile.handle;
+      if (kind === 'here' || kind === 'away') S.passkeys.set(h, [{ device: kind === 'here' ? thisDevice() : 'Old phone', here: kind === 'here' }]);
+      if (kind === 'none') S.passkeys.delete(h);
+      if (kind === 'codes') S.codesOn.add(h);
+      if (kind === 'only') S.passkeyOnly.add(h);
+      pvSignin(S.pending.profile, { quiet: true });
+    }, kind);
+    await settle();
+  }
+
+  // Front Door's search, as far as the provider's sign-in page.
+  async function toProviderSignin(handle) {
+    await click('[data-action="atmosphereButton"]');
+    await typeInto('#handle', handle);
+    await page.keyboard.press('Enter');
+    await settle();
+    await click('[data-action="toProvider"]');
+  }
+
   // ---- Scenario 1: New to the Atmosphere (Jo) ----
-  await boot('new');
-  await capture('new', 'app.signin', 'Potluck sign-in');
-  await click('[data-action="createAccount"]');
-  await capture('new', 'fd.create', 'Create an Atmosphere account');
-  await click('#create-submit');
-  await capture('new', 'pv.signup', 'Provider sign-up');
-  await click('.autofill');
-  await typeInto('#new-password', 'cooking123');
-  await click('form[data-form="signup"] [type="submit"]');
-  await capture('new', 'pv.handle', 'Choose a handle');
-  await click('form[data-form="handle"] [type="submit"]');
-  await run(900);
-  await capture('new', 'pv.consentFirst', 'Consent for an account made here');
-  await click('[data-action="consentApprove"]');
-  await run(650);
-  await capture('new', 'pv.returning', 'Taking you back');
-  await run(1200);
-  await capture('new', 'app.home', 'Welcome, Jo');
-  await run(2600);
-  await capture('new', 'app.home.mail', 'Welcome email arrives');
-  await page.locator('.notification .notif-card').click();
-  await settle();
-  await capture('new', 'mail.open', 'Welcome email');
-  await click('[data-action="mailConfirm"]');
-  await capture('new', 'pv.emailConfirmed', 'Email confirmed');
+  if (want('new')) {
+    await boot('new');
+    await capture('new', 'app.signin', 'Potluck sign-in');
+    await click('[data-action="createAccount"]');
+    await capture('new', 'fd.create', 'Create an Atmosphere account');
+    await click('#create-submit');
+    await capture('new', 'pv.signup', 'Provider sign-up');
+    await click('.autofill');
+    // The radios are hidden inside their cards, so press the cards.
+    await click('label:has(input[name="method"][value="password"])');
+    await capture('new', 'pv.signup.password', 'Sign up with a password');
+    await click('label:has(input[name="method"][value="passkey"])');
+    await capture('new', 'pv.signup.passkey', 'Sign up with a passkey');
+    await click('form[data-form="signup"] [type="submit"]');
+    await capture('new', 'browser.passkeyCreate', 'The browser makes a passkey');
+    await page.locator('.fedcm [data-action="passkeyConfirm"]').click();
+    await run(1000);
+    await capture('new', 'pv.handle', 'Choose a handle');
+    await click('form[data-form="handle"] [type="submit"]');
+    await run(900);
+    await capture('new', 'pv.consentFirst', 'Consent for an account made here');
+    await click('[data-action="consentApprove"]');
+    await run(650);
+    await capture('new', 'pv.returning', 'Taking you back');
+    await run(1200);
+    await capture('new', 'app.home', 'Welcome, Jo');
+    await run(2600);
+    await capture('new', 'app.home.mail', 'Welcome email arrives');
+    await page.locator('.notification .notif-card').click();
+    await settle();
+    await capture('new', 'mail.open', 'Welcome email');
+    await click('[data-action="mailConfirm"]');
+    await capture('new', 'pv.emailConfirmed', 'Email confirmed');
+  }
 
   // ---- Scenario 2: Knows their details (Sam) ----
-  counter = 0;
-  await boot('returning');
-  await capture('returning', 'app.signin', 'Potluck sign-in');
-  await click('[data-action="atmosphereButton"]');
-  await capture('returning', 'fd.find', 'Find the account');
-  await typeInto('#handle', 'sam@example.com');
-  await page.keyboard.press('Enter');
-  await settle();
-  await capture('returning', 'fd.find.email', 'Typed an email');
-  await typeInto('#handle', 'nobody.bsky.social');
-  await page.keyboard.press('Enter');
-  await settle();
-  await capture('returning', 'fd.find.notFound', 'Handle not found');
-  await typeInto('#handle', 'sam');
-  await capture('returning', 'fd.find.suggestions', 'Suggestions while typing');
-  await typeInto('#handle', 'sam@bsky.social');
-  await capture('returning', 'fd.find.didYouMean', 'Did you mean');
-  await act('.combo-opt').click();
-  await settle();
-  await capture('returning', 'fd.confirm', 'Is this you?');
-  await click('[data-action="toProvider"]');
-  await capture('returning', 'pv.signin', 'Provider sign-in');
-  await typeInto('#current-password', 'password');
-  await click('form[data-form="signin"] [type="submit"]');
-  await run(800);
-  await capture('returning', 'pv.consent', 'Consent');
-  await click('[data-action="consentApprove"]');
-  await run(650);
-  await capture('returning', 'pv.returning', 'Taking you back');
-  await run(1200);
-  await capture('returning', 'app.home', 'You’re in, Sam');
-  await act('.acct-menu summary').click();
-  await settle();
-  await capture('returning', 'app.home.menu', 'Account menu');
-  await click('[data-action="signOut"]');
-  await capture('returning', 'app.signin.signedOut', 'Signed out');
-  await click('[data-action="atmosphereButton"]');
-  await capture('returning', 'fedcm.choose', 'Browser offers Sam’s account');
+  if (want('returning')) {
+    counter = 0;
+    await boot('returning');
+    await capture('returning', 'app.signin', 'Potluck sign-in');
+    await click('[data-action="atmosphereButton"]');
+    await capture('returning', 'fd.find', 'Find the account');
+    await typeInto('#handle', 'sam@example.com');
+    await page.keyboard.press('Enter');
+    await settle();
+    await capture('returning', 'fd.find.email', 'Typed an email');
+    await typeInto('#handle', 'nobody.bsky.social');
+    await page.keyboard.press('Enter');
+    await settle();
+    await capture('returning', 'fd.find.notFound', 'Handle not found');
+    await typeInto('#handle', 'sam');
+    await capture('returning', 'fd.find.suggestions', 'Suggestions while typing');
+    await typeInto('#handle', 'sam@bsky.social');
+    await capture('returning', 'fd.find.didYouMean', 'Did you mean');
+    await act('.combo-opt').click();
+    await settle();
+    await capture('returning', 'fd.confirm', 'Is this you?');
+    await click('[data-action="toProvider"]');
+    await capture('returning', 'pv.signin', 'Provider sign-in');
+    await typeInto('#current-password', 'password');
+    await click('form[data-form="signin"] [type="submit"]');
+    await run(800);
+    await capture('returning', 'pv.passkeyOffer', 'Offered a passkey');
+    await click('[data-action="passkeyOfferAdd"]');
+    await capture('returning', 'browser.passkeyCreate', 'The browser makes a passkey');
+    await page.locator('.fedcm [data-action="passkeyConfirm"]').click();
+    await run(1000);
+    await capture('returning', 'pv.consent', 'Consent');
+    await click('[data-action="consentApprove"]');
+    await run(650);
+    await capture('returning', 'pv.returning', 'Taking you back');
+    await run(1200);
+    await capture('returning', 'app.home', 'You’re in, Sam');
+    await act('.acct-menu summary').click();
+    await settle();
+    await capture('returning', 'app.home.menu', 'Account menu');
+    await click('[data-action="openSettings"]');
+    await capture('returning', 'app.settings', 'Account settings in Potluck');
+    await click('[data-action="providerSettings"]');
+    await run(200);
+    await capture('returning', 'pv.security', 'Sign-in and security at Bluesky');
+    await click('[data-action="backToApp"]');
+    await act('.acct-menu summary').click();
+    await settle();
+    await click('[data-action="signOut"]');
+    await capture('returning', 'app.signin.signedOut', 'Signed out');
+    await click('[data-action="atmosphereButton"]');
+    await capture('returning', 'fedcm.choose', 'Browser offers Sam’s account');
+
+    // The variations on Bluesky's sign-in page.
+    await boot('returning');
+    await toProviderSignin('sam.bsky.social');
+    await vary('here');
+    await capture('returning', 'pv.signin.passkeyHere', 'A passkey saved on this device');
+    await click('[data-action="usePasskey"]');
+    await capture('returning', 'browser.passkey', 'Sign in with a passkey');
+    await page.locator('.fedcm [data-action="passkeyConfirm"]').click();
+    await run(1000);
+    await capture('returning', 'pv.signin.withPasskey', 'Signed in with a passkey');
+
+    await boot('returning');
+    await toProviderSignin('sam.bsky.social');
+    await vary('away');
+    await click('[data-action="usePasskey"]');
+    await capture('returning', 'browser.passkey.none', 'No passkey on this device');
+    await page.locator('.fedcm [data-action="passkeyOtherDevice"]').click();
+    await settle();
+    await capture('returning', 'browser.passkey.phone', 'Use a phone or tablet');
+
+    await boot('returning');
+    await toProviderSignin('sam.bsky.social');
+    await vary('codes');
+    await typeInto('#current-password', 'password');
+    await click('form[data-form="signin"] [type="submit"]');
+    await run(800);
+    await capture('returning', 'pv.totp', 'Verification code');
+
+    await boot('returning');
+    await toProviderSignin('sam.bsky.social');
+    await vary('here');
+    await vary('only');
+    await typeInto('#current-password', 'password');
+    await click('form[data-form="signin"] [type="submit"]');
+    await capture('returning', 'pv.signin.passkeyOnly', 'Passkey only refuses a password');
+  }
 
   // ---- Scenario 3: Forgot their details (Rae) ----
-  counter = 0;
-  await boot('forgot');
-  await capture('forgot', 'app.signin', 'Potluck sign-in');
-  await click('[data-action="atmosphereButton"]');
-  await click('[data-action="goForgot"]');
-  await capture('forgot', 'fd.forgot', 'Find the account by email');
-  await click('.autofill');
-  await act('label.chip:has(input[value="blacksky"])').click();
-  await settle();
-  await capture('forgot', 'fd.forgot.filled', 'Email and provider chosen');
-  await click('form[data-form="forgot"] [type="submit"]');
-  await capture('forgot', 'fd.checkEmail', 'Check your email');
-  await run(2800);
-  await capture('forgot', 'fd.checkEmail.mail', 'Email arrives');
-  await page.locator('.notification .notif-card').click();
-  await settle();
-  await capture('forgot', 'mail.open', 'Recovery email');
-  await click('[data-action="mailContinue"]');
-  await capture('forgot', 'pv.code', 'Code filled in from the link');
-  await click('form[data-form="code"] [type="submit"]');
-  await run(700);
-  await capture('forgot', 'pv.newPassword', 'New password, optional');
-  await click('[data-action="skipPassword"]');
-  await capture('forgot', 'pv.consent', 'Consent');
-  await click('[data-action="consentApprove"]');
-  await run(650);
-  await capture('forgot', 'pv.returning', 'Closing the tab');
-  await run(1500);
-  await capture('forgot', 'app.home', 'You’re in, Rae');
+  if (want('forgot')) {
+    counter = 0;
+    await boot('forgot');
+    await capture('forgot', 'app.signin', 'Potluck sign-in');
+    await click('[data-action="atmosphereButton"]');
+    await click('[data-action="goForgot"]');
+    await capture('forgot', 'fd.forgot', 'Find the account by email');
+    await click('.autofill');
+    await act('label.chip:has(input[value="blacksky"])').click();
+    await settle();
+    await capture('forgot', 'fd.forgot.filled', 'Email and provider chosen');
+    await click('form[data-form="forgot"] [type="submit"]');
+    await capture('forgot', 'fd.checkEmail', 'Check your email');
+    await run(2800);
+    await capture('forgot', 'fd.checkEmail.mail', 'Email arrives');
+    await page.locator('.notification .notif-card').click();
+    await settle();
+    await capture('forgot', 'mail.open', 'Recovery email, in a new tab');
+    await page.locator('.tab-main').first().click();
+    await settle();
+    await click('[data-action="goRecover"]');
+    await capture('forgot', 'fd.recover', 'Type the handle from the email');
+    await typeInto('#handle', 'rae.blacksky.app');
+    await page.keyboard.press('Enter');
+    await settle();
+    await capture('forgot', 'fd.confirm', 'Is this you?');
+    await click('[data-action="toProvider"]');
+    await capture('forgot', 'pv.code', 'Enter the code');
+    // Rae types the code from the email.
+    await typeInto('#otp', await page.evaluate(() => S.code));
+    await click('form[data-form="code"] [type="submit"]');
+    await run(700);
+    await capture('forgot', 'pv.newPassword', 'How to sign in next time');
+    await click('[data-action="recoveryAddPasskey"]');
+    await capture('forgot', 'browser.passkeyCreate', 'The browser makes a passkey');
+    await page.locator('.fedcm [data-action="passkeyConfirm"]').click();
+    await run(1000);
+    await capture('forgot', 'pv.consent', 'Consent');
+    await click('[data-action="consentApprove"]');
+    await run(650);
+    await capture('forgot', 'pv.returning', 'Taking you back');
+    await run(1500);
+    await capture('forgot', 'app.home', 'You’re in, Rae');
+  }
 
   // ---- Scenario 4: Several accounts (Alex) ----
-  counter = 0;
-  await boot('multi');
-  await capture('multi', 'app.signin', 'Potluck sign-in');
-  await click('[data-action="atmosphereButton"]');
-  await capture('multi', 'fedcm.choose', 'Browser account chooser');
-  await act('[data-handle="alexcooks.eurosky.social"]').click();
-  await settle();
-  await capture('multi', 'fedcm.busy', 'Connecting to Eurosky');
-  await run(1000);
-  await capture('multi', 'pv.consentTab', 'Consent in a new tab');
-  await click('[data-action="consentApprove"]');
-  await run(650);
-  await capture('multi', 'pv.returning', 'Closing the tab');
-  await run(1500);
-  await capture('multi', 'app.home', 'You’re in, Alex');
-  await act('.acct-menu summary').click();
-  await settle();
-  await capture('multi', 'app.home.menu', 'Account menu');
+  if (want('multi')) {
+    counter = 0;
+    await boot('multi');
+    await capture('multi', 'app.signin', 'Potluck sign-in');
+    await click('[data-action="atmosphereButton"]');
+    await capture('multi', 'fedcm.choose', 'Browser account chooser');
+    await act('[data-handle="alexcooks.eurosky.social"]').click();
+    await settle();
+    await capture('multi', 'fedcm.busy', 'Connecting to Eurosky');
+    await run(1000);
+    await capture('multi', 'pv.consentTab', 'Consent in a new tab');
+    await click('[data-action="consentApprove"]');
+    await run(650);
+    await capture('multi', 'pv.returning', 'Closing the tab');
+    await run(1500);
+    await capture('multi', 'app.home', 'You’re in, Alex');
+    await act('.acct-menu summary').click();
+    await settle();
+    await capture('multi', 'app.home.menu', 'Account menu');
+    await click('[data-action="openSettings"]');
+    await capture('multi', 'app.settings', 'Account settings in Potluck');
+  }
 
   // ---- Scenario 5: Has one, doesn't know it (Priya) ----
-  counter = 0;
-  await boot('hidden');
-  await capture('hidden', 'app.signin', 'Potluck sign-in');
-  await click('[data-action="createAccount"]');
-  await capture('hidden', 'fd.found', 'Existing account detected');
-  await click('[data-action="toggleNew"]');
-  await capture('hidden', 'fd.found.createAnyway', 'Create another anyway');
-  await click('[data-action="useExisting"]');
-  await run(100);
-  await capture('hidden', 'pv.consentTab', 'Consent in a new tab');
-  await click('[data-action="consentApprove"]');
-  await run(650);
-  await capture('hidden', 'pv.returning', 'Closing the tab');
-  await run(1500);
-  await capture('hidden', 'app.home', 'You’re in, Priya');
+  if (want('hidden')) {
+    counter = 0;
+    await boot('hidden');
+    await capture('hidden', 'app.signin', 'Potluck sign-in');
+    await click('[data-action="createAccount"]');
+    await capture('hidden', 'fd.found', 'Existing account detected');
+    await click('[data-action="toggleNew"]');
+    await capture('hidden', 'fd.found.createAnyway', 'Create another anyway');
+    await click('[data-action="useExisting"]');
+    await run(100);
+    await capture('hidden', 'pv.consentTab', 'Consent in a new tab');
+    await click('[data-action="consentApprove"]');
+    await run(650);
+    await capture('hidden', 'pv.returning', 'Closing the tab');
+    await run(1500);
+    await capture('hidden', 'app.home', 'You’re in, Priya');
+  }
 
   fs.writeFileSync(path.join(OUT, MODE, '_index.json'), JSON.stringify(index, null, 1));
   fs.writeFileSync(path.join(OUT, MODE, '_icons.json'), JSON.stringify(allIcons));

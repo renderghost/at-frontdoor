@@ -151,7 +151,15 @@
       else runs.push({ s: text.length, e: text.length + str.length, st, k: key });
       text += str;
     };
-    const walk = (n, preserve) => {
+    // An inline-block in a sentence (a link button) moves to the next line
+    // whole when it fits on one, so it keeps its spaces non-breaking too
+    const atomicOneLine = (e) => {
+      const cs = getComputedStyle(e);
+      if (!/^inline-(block|flex|grid)$/.test(cs.display)) return false;
+      const lh = px(cs.lineHeight) || px(cs.fontSize) * 1.25;
+      return e.getBoundingClientRect().height < lh * 1.5;
+    };
+    const walk = (n, keep) => {
       if (n.nodeType === 3) {
         const pcs = getComputedStyle(n.parentElement);
         if (pcs.display === 'none') return;
@@ -162,7 +170,7 @@
           if (lastSpace) t = t.replace(/^ /, '');
         }
         // Text that must not break keeps its spaces non-breaking
-        const keepTogether = pcs.whiteSpace === 'nowrap' || pcs.textWrapMode === 'nowrap';
+        const keepTogether = keep || pcs.whiteSpace === 'nowrap' || pcs.textWrapMode === 'nowrap';
         const endsSpace = / $/.test(t);
         if (keepTogether) t = t.replace(/ (?=.)/g, '\u00a0');
         if (!t) return;
@@ -175,7 +183,8 @@
           return;
         }
         if (n.tagName === 'WBR') return;
-        for (const c of n.childNodes) walk(c);
+        const k = keep || atomicOneLine(n);
+        for (const c of n.childNodes) walk(c, k);
       }
     };
     nodes.forEach((n) => walk(n));
@@ -271,6 +280,13 @@
           if (!icons[nm]) icons[nm] = e.innerHTML.replace(/\s+/g, ' ');
           const node = { t: 'I', i: nm, ...rel, col };
           if (px(cs.strokeWidth) && px(cs.strokeWidth) !== 2) node.sw = px(cs.strokeWidth);
+          // A turned icon, such as an open disclosure's chevron. Quarter turns
+          // only, and nothing animated, so a spinner caught mid-turn stays upright.
+          const m = cs.animationName === 'none' && /^matrix\(([^,]+),\s*([^,]+)/.exec(cs.transform);
+          if (m) {
+            const deg = (((Math.round((Math.atan2(+m[2], +m[1]) * 180) / Math.PI)) % 360) + 360) % 360;
+            if (deg && deg % 90 === 0) node.rot = deg;
+          }
           if (abs) node.ab = 1;
           return node;
         }
@@ -372,12 +388,36 @@
         if (child) kids.push(child);
       }
       flush();
+
+      // A grid of rows and columns, such as the notes' two-column details: one
+      // frame per row, so Figma keeps the columns rather than wrapping one run.
+      let gridRows = false;
+      if (disp.includes('grid')) {
+        const cols = cs.gridTemplateColumns.split(/\s+/).filter(Boolean).length;
+        const inFlow = kids.filter((k) => !k.ab);
+        if (cols > 1 && inFlow.length > cols && inFlow.length % cols === 0) {
+          const rows = [];
+          for (let i = 0; i < inFlow.length; i += cols) rows.push(inFlow.slice(i, i + cols));
+          if (rows.every((r) => r.every((k) => Math.abs(k.y - r[0].y) < 1.5))) {
+            const left = px(cs.borderLeftWidth) + px(cs.paddingLeft);
+            const width = rect.width - left - px(cs.borderRightWidth) - px(cs.paddingRight);
+            const rowNodes = rows.map((r) => {
+              const y = Math.min(...r.map((k) => k.y));
+              const h = Math.max(...r.map((k) => k.y + k.h)) - y;
+              const c = r.map((k, i) => ({ ...k, x: r2(k.x - left), y: r2(k.y - y), ...(i === r.length - 1 ? { sw: 'F' } : {}) }));
+              return { t: 'F', n: 'row', x: r2(left), y: r2(y), w: r2(width), h: r2(h), L: 'H', g: r2(r[1].x - (r[0].x + r[0].w)), ci: 'MIN', ai: 'MIN', c };
+            });
+            kids.splice(0, kids.length, ...kids.filter((k) => k.ab), ...rowNodes);
+            gridRows = true;
+          }
+        }
+      }
       node.c = kids;
 
       // Layout
       const flow = kids.filter((k) => !k.ab);
       const isFlex = disp.includes('flex');
-      const isGrid = disp.includes('grid');
+      const isGrid = disp.includes('grid') && !gridRows;
       let dir;
       if (isFlex) dir = cs.flexDirection.startsWith('row') ? 'H' : 'V';
       else if (isGrid) {
@@ -390,9 +430,10 @@
         dir = flow.length > 1 && flow.every((k) => Math.abs(k.y - flow[0].y) < 1.5) && flow.every((k, i) => i === 0 || k.x >= flow[i - 1].x + flow[i - 1].w - 1) ? 'H' : 'V';
       }
       if (isFlex && cs.flexWrap === 'wrap') {
-        // A wrapping flex box that actually wrapped
-        const rows = new Set(flow.map((k) => Math.round(k.y)));
-        if (rows.size > 1) node.wr = 1;
+        // A wrapping flex box that actually wrapped: an item starts back at
+        // the left, below the one before it. (Centred items on one line sit at
+        // different heights, so comparing tops isn't enough.)
+        if (flow.some((k, i) => i > 0 && k.x < flow[i - 1].x + flow[i - 1].w - 1 && k.y >= flow[i - 1].y + flow[i - 1].h - 1)) node.wr = 1;
       }
       node.L = dir;
       const padT = px(cs.paddingTop), padR = px(cs.paddingRight), padB = px(cs.paddingBottom), padL = px(cs.paddingLeft);
@@ -425,6 +466,9 @@
         else if (node.ci === 'MIN' && posCross - cStart > 1 && !node.wr && node.L !== 'N') {
           // cross offset that alignment can't express
           kEl.off = r2(posCross - cStart);
+          // Stretched but pushed in by a margin, as the staggered recipe cards
+          // are: it fills what's left after the offset.
+          if (k.t !== 'I' && k.t !== 'M' && stretch && Math.abs(posCross - cStart + kEl[cross] - cSize) < 0.75) kEl['s' + cross] = 'F';
         }
         // main axis grow
         if (!node.wr && node.L !== 'N' && k.t !== 'I' && k.t !== 'M' && k.grow) kEl['s' + main] = 'F';
@@ -434,13 +478,27 @@
         node.g = px(isGrid ? cs.columnGap : cs.columnGap) || 0;
         node.cg = px(cs.rowGap) || 0;
         if (dir === 'H' && flow.length > 1) {
-          // infer column gap from first row
-          const row0 = flow.filter((k) => Math.abs(k.y - flow[0].y) < 1.5);
-          if (row0.length > 1) node.g = r2(row0[1].x - (row0[0].x + row0[0].w));
-          const rowsY = [...new Set(flow.map((k) => Math.round(k.y)))].sort((a, b) => a - b);
-          if (rowsY.length > 1) {
-            const first = flow.filter((k) => Math.round(k.y) === rowsY[0]);
-            node.cg = r2(rowsY[1] - Math.max(...first.map((k) => k.y + k.h)));
+          // Lines: a new one starts where an item wraps back to the left.
+          // Items on one line can sit at different heights when centred, so
+          // their tops don't say which line they're on.
+          const lines = [[flow[0]]];
+          for (let i = 1; i < flow.length; i++) {
+            const p = flow[i - 1], k = flow[i];
+            if (k.x < p.x + p.w - 1) lines.push([k]);
+            else lines[lines.length - 1].push(k);
+          }
+          if (lines[0].length > 1) node.g = r2(lines[0][1].x - (lines[0][0].x + lines[0][0].w));
+          if (lines.length > 1) node.cg = r2(Math.min(...lines[1].map((k) => k.y)) - Math.max(...lines[0].map((k) => k.y + k.h)));
+          // A line that starts in from the content edge (a left margin) keeps
+          // its indent as a padding wrapper round its first item
+          if (node.ai === 'MIN') {
+            for (const ln of lines) {
+              const k = ln[0], extra = r2(k.x - cLeft);
+              if (extra <= 0.75) continue;
+              const w = { t: 'F', n: 'gap', L: 'H', g: 0, ai: 'MIN', ci: 'MIN', p: [0, 0, 0, extra], c: [k], x: r2(k.x - extra), y: k.y, w: r2(k.w + extra), h: k.h };
+              if (k.sh === 'F') w.sh = 'F';
+              node.c[node.c.indexOf(k)] = w;
+            }
           }
         }
       } else if (flow.length > 1) {
@@ -582,8 +640,27 @@
     materialiseMarkers(root);
     return made.length;
   }
+  // List markers (“1.”, “•”), which aren't in the DOM: a real span where the
+  // browser draws each one, outside the item, so the layout doesn't move.
+  function materialiseListMarkers(root) {
+    for (const li of root.querySelectorAll('li')) {
+      const cs = getComputedStyle(li);
+      if (cs.display !== 'list-item' || cs.listStyleType === 'none' || cs.listStylePosition !== 'outside') continue;
+      const list = li.parentElement;
+      const n = [...list.children].filter((c) => c.tagName === 'LI').indexOf(li) + (list.tagName === 'OL' ? list.start || 1 : 1);
+      const span = document.createElement('span');
+      span.className = 'fd-pseudo';
+      span.textContent = /decimal/.test(cs.listStyleType) ? `${n}.` : '\u2022';
+      span.style.cssText = 'position:absolute;right:100%;top:0;padding-right:0.45em;white-space:nowrap;text-align:right';
+      li.insertBefore(span, li.firstChild);
+      li.style.position = 'relative';
+      li.style.listStyle = 'none';
+      li.classList.add('fd-np-marker');
+    }
+  }
   // Native <summary> disclosure triangles
   function materialiseMarkers(root) {
+    materialiseListMarkers(root);
     for (const sm of root.querySelectorAll('summary')) {
       const cs = getComputedStyle(sm);
       if (cs.display !== 'list-item' || cs.listStyleType === 'none') continue;
@@ -599,6 +676,7 @@
   function restorePseudo(root) {
     root.querySelectorAll('.fd-pseudo').forEach((s) => s.remove());
     root.querySelectorAll('.fd-np-before, .fd-np-after').forEach((e) => { e.classList.remove('fd-np-before', 'fd-np-after'); if (e.tagName === 'SUMMARY') e.style.listStyle = ''; });
+    root.querySelectorAll('.fd-np-marker').forEach((e) => { e.classList.remove('fd-np-marker'); e.style.position = ''; e.style.listStyle = ''; });
   }
 
   window.FD = { extract, materialisePseudo, restorePseudo };

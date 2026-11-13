@@ -21,7 +21,10 @@ if (FIRST) {
   const WM = { 400: 'Regular', 500: 'Medium', 600: 'SemiBold', 700: 'Bold', 800: 'Bold' };
   const WN = { 200: 'ExtraLight', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'SemiBold', 700: 'Bold', 800: 'ExtraBold', 900: 'Black' };
   const FAM = { Fraunces: 'Fraunces', Newsreader: 'Newsreader', Comic: 'Comic Neue' };
-  const fn = (ts) => (ts.fam === 'Mono' ? { family: 'Roboto Mono', style: WM[ts.w] } : FAM[ts.fam] ? { family: FAM[ts.fam], style: WN[ts.w] || 'Regular' } : { family: 'Inter', style: WI[ts.w] });
+  // Optical size follows the text size, as in the browser (see OPSZ in builder.js).
+  const OPSZ = { Fraunces: [9, 144], Newsreader: [6, 72] };
+  const opsz = (f, z) => (OPSZ[f.family] && (figma.getFontFamilyVariationAxes(f.family) || []).includes('opsz') ? { ...f, variationSettings: { opsz: Math.min(OPSZ[f.family][1], Math.max(OPSZ[f.family][0], z)) } } : f);
+  const fn = (ts) => (ts.fam === 'Mono' ? { family: 'Roboto Mono', style: WM[ts.w] } : FAM[ts.fam] ? opsz({ family: FAM[ts.fam], style: WN[ts.w] || 'Regular' }, ts.z) : { family: 'Inter', style: WI[ts.w] });
   const label = { Mono: 'monospace', Inter: 'Inter', Fraunces: 'Fraunces', Newsreader: 'Newsreader', Comic: 'Comic Neue' };
   const local = await figma.getLocalTextStylesAsync();
   const byName = new Map(local.map((s) => [s.name, s]));

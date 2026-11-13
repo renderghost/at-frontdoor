@@ -5,8 +5,8 @@
 // Return values hold the new page IDs: put them into the later steps.
 const COMP_PAGE = '16:55';
 const SCENARIO_PAGES = ['16:56', '16:57', '16:58', '16:59', '16:60'];
-// Hex tokens from styles.css: node -e "..." in the README prints this object.
-const TOKENS = {"potluck/card": "#fffcf4", "potluck/cream": "#fbefd2", "potluck/yellow": "#f3be3a", "potluck/yellow-soft": "#fde3a1", "potluck/yellow-deep": "#b9860b", "potluck/brown": "#5b3a22", "potluck/ink": "#2f1f14", "potluck/ink-soft": "#6a4b35", "potluck/bark": "#3a2416", "potluck/bark-raised": "#4b3020", "potluck/on-bark": "#fff4dc", "potluck/on-bark-soft": "#e2c9a6", "frame/paper": "#f6f9fe", "frame/ground": "#e9f1fc", "frame/card": "#fdfeff", "frame/ink": "#14396f", "frame/ink-soft": "#3d5f8f", "frame/blue": "#1f5fbf", "frame/tint": "#d7e6fb"};
+// Hex tokens from styles.css: `node tools/figma-export/tokens.js` prints this object.
+const TOKENS = {"potluck/card":"#fffcf4","potluck/cream":"#fbefd2","potluck/yellow":"#f3be3a","potluck/yellow-soft":"#fde3a1","potluck/yellow-deep":"#b9860b","potluck/brown":"#5b3a22","potluck/ink":"#2f1f14","potluck/ink-soft":"#6a4b35","potluck/bark":"#3a2416","potluck/bark-raised":"#4b3020","potluck/bark-cream":"#ffecc8","potluck/on-bark":"#fff4dc","potluck/on-bark-soft":"#e2c9a6","potluck/tile-apricot":"#f8cf9c","potluck/tile-clay":"#efb99b","potluck/tile-straw":"#e9d29a","potluck/tile-oat":"#dcc3a1","potluck/tile-flour":"#f3e7cc","frame/paper":"#f6f9fe","frame/ground":"#e9f1fc","frame/card":"#fdfeff","frame/ink":"#14396f","frame/ink-soft":"#3d5f8f","frame/blue":"#1f5fbf","frame/tint":"#d7e6fb"};
 
 const out = {};
 const coll = (await figma.variables.getLocalVariableCollectionsAsync()).find((c) => c.name === 'Colour');
